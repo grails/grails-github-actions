@@ -125,6 +125,7 @@ jobs:
             apache-${{ needs.test.outputs.extract_repository_name }}-${{ needs.test.outputs.release_version }}-incubating-src.zip.sha512
             apache-${{ needs.test.outputs.extract_repository_name }}-${{ needs.test.outputs.release_version }}-incubating-src.zip.asc
   upload:
+    name: "Upload Distributions to dist.apache.org"
     needs: [ test, source ]
     runs-on: ubuntu-24.04
     permissions:
@@ -220,6 +221,7 @@ jobs:
         run: |
           export DIST_SVN_REVISION=$(awk '/Last Changed Rev:/ {print $4}' dev-repo/DIST_SVN_REVISION.txt)
           
+          echo "::group::Grails PPMC Vote Email"
           echo "*************************************************"
           echo "Subject: [VOTE] Release Apache Grails (incubating) GitHub Actions ${VERSION}"
           echo "*************************************************"
@@ -227,6 +229,7 @@ jobs:
           echo "*************************************************"
           cat grails-github-actions/.github/vote_templates/staged.txt | envsubst
           echo "*************************************************"
+          echo "::endgroup::"
       - name: 'Groovy Vote Email'
         env:
           VERSION: ${{ needs.test.outputs.release_version }}
@@ -234,6 +237,7 @@ jobs:
         run: |
           export DIST_SVN_REVISION=$(awk '/Last Changed Rev:/ {print $4}' dev-repo/DIST_SVN_REVISION.txt)
           
+          echo "::group::Groovy PMC Vote Email"
           echo "*************************************************"
           echo "Subject: [VOTE] Approval of Apache Grails (incubating) GitHub Actions ${VERSION} release by Groovy PMC"
           echo "*************************************************"
@@ -241,6 +245,44 @@ jobs:
           echo "*************************************************"
           cat grails-github-actions/.github/vote_templates/groovy_pmc.txt | envsubst
           echo "*************************************************"
+          echo "::endgroup::"
+  release:
+    environment: release
+    name: "VOTE SUCCEEDED - Release Artifacts"
+    needs: [ test, source, upload ]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: "Output Agent IP" # in the event RAO blocks this agent, this can be used to debug it
+        run: curl -s https://api.ipify.org
+      - name: "Setup SVN and Tools"
+        run: sudo apt-get install -y subversion subversion-tools tree gettext-base
+      - name: "🗳 Grails PPMC Vote Confirmation - MANUAL"
+        run: |
+          echo "::group::Manual Confirmation"
+          echo "🔎 This step is a placeholder that the vote confirmation on dev@grails.apache.org completed successfully."
+          echo "::endgroup::"
+      - name: "🗳 Groovy PMC Vote Confirmation - MANUAL"
+        run: |
+          echo "::group::Manual Confirmation"
+          echo "🔎 This step is a placeholder that the vote confirmation on dev@grails.apache.org completed successfully."
+          echo "::endgroup::"
+      - name: "🚀 Release distribution artifacts - MANUAL"
+        run: |
+          echo "::group::Manual ASF Artifact Promotion"
+          echo "Run github/scripts/releaseDistributions.sh 'v${{ needs.test.outputs.release_version }}' ASF_USER ASF_PASS"
+          echo "::endgroup::"
+      - name: "✅ Update ASF Reporter - MANUAL"
+        run: |
+          echo "::group::Manual ASF Reporter Update"
+          TODAY=$(date +"%Y-%m-%d")
+          echo "Check email & update https://reporter.apache.org to mark the release ${{ needs.test.outputs.release_version }} as complete as of ${TODAY}"
+          echo "Note: this is a place holder; currently this is not possible since Groovy sponsors us instead of the incubator PMC"
+          echo "::endgroup::"
+      - name: '🌎 Create Blog Post - MANUAL'
+        run: |
+          echo "::group::Blog Post Creation - MANUAL"
+          echo "Publish a blog post on https://grails.apache.org/blog/ about the new release ${{ needs.test.outputs.release_version }} using the repo https://github.com/apache/grails-static-website"
+          echo "::endgroup::"
       - name: 'Announcement Email'
         env:
           VERSION: ${{ needs.test.outputs.release_version }}
@@ -249,6 +291,7 @@ jobs:
         run: |
           export DIST_SVN_REVISION=$(awk '/Last Changed Rev:/ {print $4}' dev-repo/DIST_SVN_REVISION.txt)
           
+          echo "::group::Announcement Email"
           echo "*************************************************"
           echo "Subject: [ANNOUNCE] Apache Grails (incubating) GitHub Actions ${VERSION}"
           echo "*************************************************"
@@ -256,3 +299,4 @@ jobs:
           echo "*************************************************"
           cat grails-github-actions/.github/vote_templates/announce.txt | envsubst
           echo "*************************************************"
+          echo "::endgroup::"
