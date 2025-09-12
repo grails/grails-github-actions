@@ -13,7 +13,7 @@ Apache Grails website: https://grails.apache.org/
 Download Links: https://grails.apache.org/download.html
 
 Grails Resources:
-- Grails GitHub Actions repo: https://github.com/apache/grails-github-actionjs
+- Grails GitHub Actions repo: https://github.com/apache/grails-github-action
 - Issues: https://github.com/apache/grails-github-actions/issues
 - Mailing lists: https://grails.apache.org/community.html
 
