@@ -39,6 +39,7 @@ If using the default `GITHUB_TOKEN`, this action requires permission `contents: 
 * (required for release) `VERSION` - the version of the documentation being deployed. Must be a [Semantic Version](https://semver.org/). This is required for release documentation publishing only.
 * (optional) `DOCUMENTATION_BRANCH` - the branch to which the documentation files will be copied. Defaults to `gh-pages`.
 * (optional) `GH_TOKEN` - the GitHub token to use for authentication. If not provided, the action will use the default GitHub token available in the environment.
+* (optional) `TARGET_FOLDER` - defaults to the root of the `DOCUMENTATION_BRANCH`, allows for specifying a base path for documentation.
 * (optional) `TARGET_SUBFOLDER` - if specified, a nested subfolder will be created with this name in any documentation folder.
 * (optional) `LAST_RELEASE_FOLDER` - the `latest` folder name for a release. Defaults to `latest`.
 * (optional) `LAST_SNAPSHOT_FOLDER` - the `snapshot` folder name for a snapshot. Defaults to `snapshot`.

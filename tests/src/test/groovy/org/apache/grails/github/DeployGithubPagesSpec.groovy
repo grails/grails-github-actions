@@ -312,6 +312,62 @@ class DeployGithubPagesSpec extends Specification {
         action.close()
     }
 
+    def "snapshot - published to different base path without subfolder"() {
+        given:
+        Network net = Network.newNetwork()
+
+        and:
+        GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
+        GitHubDockerAction action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
+
+        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo.init()
+        gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], getProjectFiles())
+        gitRepo.stageRepositoryForAction('main', false)
+
+        and:
+        def env = getDefaultEnvironment(action, gitRepo)
+        env['GRADLE_PUBLISH_RELEASE'] = 'false' // snapshot
+        env['SOURCE_FOLDER'] = 'docs'
+        env['TARGET_FOLDER'] = 'my/base/path'
+        env['VERSION'] = '7.0.0-SNAPSHOT'
+
+        and:
+        action.createContainer(env, net)
+
+        when:
+        action.runAction()
+
+        then:
+        action.actionExitCode == 0L
+        action.actionLogs
+
+        and: 'gh-pages branch created'
+        action.getActionGroupLogs('Creating documentation branch')
+        gitRepo.branchExists('gh-pages')
+
+        and: 'files published to snapshot'
+        gitRepo.getFileContents('index.html', 'gh-pages') == '<html><body>Welcome to the Grails GitHub Pages</body></html>'
+        gitRepo.getFolders('my/base/path/snapshot', 'gh-pages') == []
+        gitRepo.getFileContents('my/base/path/snapshot/index.html', 'gh-pages') == '<html><body>Welcome to the Grails Documentation</body></html>'
+
+        and: 'main did not change'
+        gitRepo.getFileContents('gradle.properties', 'main') == 'projectVersion=7.0.0-SNAPSHOT'
+
+        and: 'main did not add any folders'
+        gitRepo.getFolders('main') == ['docs']
+
+        and: 'gh-pages added expected folders'
+        gitRepo.getFolders('gh-pages') == ['my']
+        gitRepo.getFolders('my', 'gh-pages') == ['base']
+        gitRepo.getFolders('my/base', 'gh-pages') == ['path']
+
+        cleanup:
+        System.out.println("Container logs:\n${action.actionLogs}" as String)
+        gitRepo?.close()
+        action.close()
+    }
+
     def "snapshot - version is ignored on snapshot"() {
         given:
         Network net = Network.newNetwork()
@@ -414,6 +470,72 @@ class DeployGithubPagesSpec extends Specification {
         gitRepo.getFileContents('latest/index.html', 'gh-pages') == '<html><body>Welcome to the Grails Documentation</body></html>'
         gitRepo.getFileContents('7.0.x/index.html', 'gh-pages') == '<html><body>Welcome to the Grails Documentation</body></html>'
         gitRepo.getFileContents('7.0.0-RC1/index.html', 'gh-pages') == '<html><body>Welcome to the Grails Documentation</body></html>'
+
+        and: 'main did not change'
+        gitRepo.getFileContents('gradle.properties', 'main') == 'projectVersion=7.0.0-SNAPSHOT'
+
+        and: 'main did not add any folders'
+        gitRepo.getFolders('main') == ['docs']
+
+        cleanup:
+        System.out.println("Container logs:\n${action.actionLogs}" as String)
+        gitRepo?.close()
+        action.close()
+    }
+
+    def "release - published to different base path without subfolder"() {
+        given:
+        Network net = Network.newNetwork()
+
+        and:
+        GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
+        GitHubDockerAction action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
+
+        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo.init()
+        gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], getProjectFiles())
+        gitRepo.stageRepositoryForAction('main', false)
+
+        and:
+        def env = getDefaultEnvironment(action, gitRepo)
+        env['GRADLE_PUBLISH_RELEASE'] = 'true'
+        env['SKIP_SNAPSHOT_FOLDER'] = 'true' // should be ignored because this is a release
+        env['TARGET_FOLDER'] = 'my/base/path'
+        env['SOURCE_FOLDER'] = 'docs'
+        env['VERSION'] = '7.0.0-RC1'
+
+        and:
+        action.createContainer(env, net)
+
+        when:
+        action.runAction()
+
+        then:
+        action.actionExitCode == 0L
+        action.actionLogs
+
+        and:
+        !action.actionLogs.contains('Snapshot detected and snapshot publishing is disabled. Skipping documentation deployment.')
+
+        and:
+        action.getActionGroupLogs('Publishing Specific Release Version: 7.0.0-RC1')
+        action.getActionGroupLogs('Publishing Generic Release Version: 7.0.x')
+        action.getActionGroupLogs('Overwriting latest with the latest release documentation')
+
+        and:
+        gitRepo.branchExists('gh-pages')
+
+        and:
+        gitRepo.getFolders('gh-pages') == ['my']
+        gitRepo.getFolders('my', 'gh-pages') == ['base']
+        gitRepo.getFolders('my/base', 'gh-pages') == ['path']
+        gitRepo.getFolders('my/base/path', 'gh-pages').sort() == ['7.0.0-RC1', '7.0.x', 'latest']
+        gitRepo.getFileContents('index.html', 'gh-pages') == '<html><body>Welcome to the Grails GitHub Pages</body></html>'
+
+        and:
+        gitRepo.getFileContents('my/base/path/latest/index.html', 'gh-pages') == '<html><body>Welcome to the Grails Documentation</body></html>'
+        gitRepo.getFileContents('my/base/path/7.0.x/index.html', 'gh-pages') == '<html><body>Welcome to the Grails Documentation</body></html>'
+        gitRepo.getFileContents('my/base/path/7.0.0-RC1/index.html', 'gh-pages') == '<html><body>Welcome to the Grails Documentation</body></html>'
 
         and: 'main did not change'
         gitRepo.getFileContents('gradle.properties', 'main') == 'projectVersion=7.0.0-SNAPSHOT'
