@@ -22,7 +22,7 @@ A GitHub Action that handles steps necessary to close out a GitHub Release proce
 
 1. Creating a branch of named like `merge-back-TAGNAME` that will:
     * Include the tag changes to prevent orphaned changes.
-    * Include changing the version in `gradle.properties` or `version` to the next version. 
+    * Include changing the `projectVersion` or `version` property in `gradle.properties` to the next version. 
 2. Optionally closing the current milestone associated with the release.
 3. Optionally running an additional script as part of the close process to transform files in the repository.
 
@@ -38,7 +38,8 @@ Please note that the next version is derived from the provided `RELEASE_VERSION`
 ## Environment Variables
 * (optional) `RELEASE_VERSION` - The version of the release being closed. If not set, it will be derived from the `GITHUB_REF`, which as part of a release will be the tag name.
 * (optional) `RELEASE_TAG_PREFIX` - The prefix of the release tag. If not set, it will default to `v` (e.g., `v1.0.0`).
-* (optional) `RELEASE_SCRIPT_PATH` - An optional path to a custom shell script that will be executed after the version replacement in `gradle.properties`, but prior to commiting the project changes.
+* (optional) `PROPERTY_FILE_NAME` - defaults to `gradle.properties`, the property file containing the version property to update
+* (optional) `RELEASE_SCRIPT_PATH` - An optional path to a custom shell script that will be executed after the version replacement in property file defined by `PROPERTY_FILE_NAME`, but prior to commiting the project changes.
 
 ## Example Usage
 

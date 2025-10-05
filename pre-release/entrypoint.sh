@@ -83,6 +83,7 @@ echo "Release Version: ${RELEASE_VERSION}"
 set_value_or_error "${RELEASE_URL}" `cat $GITHUB_EVENT_PATH | jq '.release.url' | sed -e 's/^"\(.*\)"$/\1/g'` "RELEASE_URL"
 set_value_or_error "${GIT_USER_NAME}" "${GITHUB_ACTOR}" "GIT_USER_NAME"
 set_value_or_error "${GITHUB_WORKSPACE}" "." "GIT_SAFE_DIR"
+set_value_or_error "${PROPERTY_FILE_NAME}" "gradle.properties" "PROPERTY_FILE_NAME"
 
 echo "Configuring git"
 git config --global --add safe.directory "${GIT_SAFE_DIR}"
@@ -93,12 +94,12 @@ echo "::endgroup::"
 
 echo "::group::Updating Project Version"
 git checkout "${RELEASE_TAG_PREFIX}${RELEASE_VERSION}"
-echo "Setting release version in gradle.properties"
-sed -i "s/^projectVersion\=.*$/projectVersion\=${RELEASE_VERSION}/" gradle.properties
-sed -i "s/^version\=.*$/version\=${RELEASE_VERSION}/" gradle.properties
-cat gradle.properties
+echo "Setting release version in ${PROPERTY_FILE_NAME}"
+sed -i "s/^projectVersion\=.*$/projectVersion\=${RELEASE_VERSION}/" "${PROPERTY_FILE_NAME}"
+sed -i "s/^version\=.*$/version\=${RELEASE_VERSION}/" "${PROPERTY_FILE_NAME}"
+cat "${PROPERTY_FILE_NAME}"
 echo "\n"
-git add gradle.properties
+git add "${PROPERTY_FILE_NAME}"
 echo "::endgroup::"
 
 if [[ -n "${RELEASE_SCRIPT_PATH}" && -x "${GITHUB_WORKSPACE}/${RELEASE_SCRIPT_PATH}" ]]; then
