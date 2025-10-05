@@ -25,13 +25,14 @@ A GitHub Action that handles steps necessary to close out a GitHub Release proce
     * Include changing the version in `gradle.properties` or `version` to the next version. 
 2. Optionally closing the current milestone associated with the release.
 3. Optionally running an additional script as part of the close process to transform files in the repository.
+4. Removing the `prerelease` flag from the release & setting the release to the latest GitHub release.
 
 Please note that the next version is derived from the provided `RELEASE_VERSION` using a script that assumes a [Semantic Version](https://semver.org/).
 
 ## Requirements
 
 1. Github Actions must be allowed to create pull requests in the repository. You can configure this in the repository settings under "Actions" -> "General" -> "Workflow permissions".
-2. Requires the permission `contents: write` to create a branch and commit changes to the repository.
+2. Requires the permission `contents: write` to create a branch, commit changes to the repository, update the GitHub release to no longer be a pre-release, and update the GitHub release to be the latest.
 3. Optionally requires the permission `pull-requests: write` to open the pull request to merge back changes from the tag. If this permission is not set, a Pull Request will not be created.
 4. Optionally requires the permission `issues: write` if milestone closing is required.
 
