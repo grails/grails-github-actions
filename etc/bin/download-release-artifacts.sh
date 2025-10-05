@@ -33,6 +33,6 @@ mkdir -p "${DOWNLOAD_LOCATION}"
 VERSION=${RELEASE_TAG#v}
 
 # Source distro
-curl -L -o "${DOWNLOAD_LOCATION}/apache-grails-github-actions-$VERSION-incubating-src.zip" "https://github.com/apache/grails-github-actions/releases/download/$RELEASE_TAG/apache-grails-github-actions-$VERSION-incubating-src.zip"
-curl -L -o "${DOWNLOAD_LOCATION}/apache-grails-github-actions-$VERSION-incubating-src.zip.asc" "https://github.com/apache/grails-github-actions/releases/download/$RELEASE_TAG/apache-grails-github-actions-$VERSION-incubating-src.zip.asc"
-curl -L -o "${DOWNLOAD_LOCATION}/apache-grails-github-actions-$VERSION-incubating-src.zip.sha512" "https://github.com/apache/grails-github-actions/releases/download/$RELEASE_TAG/apache-grails-github-actions-$VERSION-incubating-src.zip.sha512"
+curl -L -o "${DOWNLOAD_LOCATION}/apache-grails-github-actions-$VERSION-src.zip" "https://github.com/apache/grails-github-actions/releases/download/$RELEASE_TAG/apache-grails-github-actions-$VERSION-src.zip"
+curl -L -o "${DOWNLOAD_LOCATION}/apache-grails-github-actions-$VERSION-src.zip.asc" "https://github.com/apache/grails-github-actions/releases/download/$RELEASE_TAG/apache-grails-github-actions-$VERSION-src.zip.asc"
+curl -L -o "${DOWNLOAD_LOCATION}/apache-grails-github-actions-$VERSION-src.zip.sha512" "https://github.com/apache/grails-github-actions/releases/download/$RELEASE_TAG/apache-grails-github-actions-$VERSION-src.zip.sha512"
