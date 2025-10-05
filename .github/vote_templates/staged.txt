@@ -20,14 +20,14 @@ https://dist.apache.org/repos/dist/release/grails/KEYS
 
 Please vote on releasing this package as: Apache Grails GitHub Actions ${VERSION}.
 
-Reminder on ASF release approval requirements for PPMC members:
+Reminder on ASF release approval requirements for PMC members:
 https://www.apache.org/legal/release-policy.html#release-approval
 
 Hints on validating checksums/signatures (but replace md5sum with sha512sum):
 https://www.apache.org/info/verification.html
 
 The vote is open for a minimum of 72 hours and passes if a majority of at least
-three +1 PPMC votes are cast.
+three +1 PMC votes are cast.
 
 [ ] +1 Release Apache Grails GitHub Actions ${VERSION}
 [ ]  0 I don't have a strong opinion about this, but I assume it's ok
