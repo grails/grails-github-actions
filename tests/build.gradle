@@ -47,6 +47,13 @@ dependencies {
 tasks.withType(Test).configureEach {
     useJUnitPlatform()
     systemProperty('GITHUB_ACTION_PROJECT_DIR', rootProject.layout.projectDirectory.dir('..').getAsFile().absolutePath)
+    testLogging {
+        events('passed', 'skipped', 'failed')
+        showExceptions = true
+        exceptionFormat = 'full'
+        showCauses = true
+        showStackTraces = true
+    }
 }
 
 apply {

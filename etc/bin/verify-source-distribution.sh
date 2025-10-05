@@ -31,10 +31,10 @@ fi
 VERSION=${RELEASE_TAG#v}
 
 cd "${DOWNLOAD_LOCATION}"
-ZIP_FILE=$(ls "apache-grails-github-actions-${VERSION}-incubating-src.zip" 2>/dev/null | head -n 1)
+ZIP_FILE=$(ls "apache-grails-github-actions-${VERSION}-src.zip" 2>/dev/null | head -n 1)
 
 if [ -z "${ZIP_FILE}" ]; then
-  echo "Error: Could not find apache-grails-github-actions-${VERSION}-incubating-src.zip in ${DOWNLOAD_LOCATION}"
+  echo "Error: Could not find apache-grails-github-actions-${VERSION}-src.zip in ${DOWNLOAD_LOCATION}"
   exit 1
 fi
 
@@ -45,11 +45,11 @@ cleanup() {
 trap cleanup EXIT
 
 echo "Verifying checksum..."
-shasum -a 512 -c "apache-grails-github-actions-${VERSION}-incubating-src.zip.sha512"
+shasum -a 512 -c "apache-grails-github-actions-${VERSION}-src.zip.sha512"
 echo "✅ Checksum Verified"
 
 echo "Downloading KEYS file"
-curl -o "${SCRIPT_DIR}/KEYS" https://dist.apache.org/repos/dist/release/incubator/grails/KEYS
+curl -o "${SCRIPT_DIR}/KEYS" https://dist.apache.org/repos/dist/release/grails/KEYS
 echo "✅ KEYS Downloaded"
 
 echo "Importing GPG key to independent GPG home ..."
@@ -57,7 +57,7 @@ gpg --homedir "${GRAILS_GPG_HOME}" --import "${SCRIPT_DIR}/KEYS"
 echo "✅ GPG Key Imported"
 
 echo "Verifying GPG signature..."
-gpg --homedir "${GRAILS_GPG_HOME}" --verify "apache-grails-github-actions-${VERSION}-incubating-src.zip.asc" "apache-grails-github-actions-${VERSION}-incubating-src.zip"
+gpg --homedir "${GRAILS_GPG_HOME}" --verify "apache-grails-github-actions-${VERSION}-src.zip.asc" "apache-grails-github-actions-${VERSION}-src.zip"
 echo "✅ GPG Verified"
 
 SRC_DIR="${DOWNLOAD_LOCATION}/grails-github-actions"
@@ -73,7 +73,7 @@ if [ -d "${SRC_DIR}" ]; then
   cd "${DOWNLOAD_LOCATION}"
 fi
 echo "Extracting zip file..."
-unzip -q "apache-grails-github-actions-${VERSION}-incubating-src.zip"
+unzip -q "apache-grails-github-actions-${VERSION}-src.zip"
 
 if [ ! -d "${SRC_DIR}" ]; then
   echo "Error: Expected extracted folder '${SRC_DIR}' not found."
@@ -81,7 +81,7 @@ if [ ! -d "${SRC_DIR}" ]; then
 fi
 
 echo "Checking for required files existence..."
-REQUIRED_FILES=("LICENSE" "NOTICE" "README.md" "BUILD_DATE" "DISCLAIMER")
+REQUIRED_FILES=("LICENSE" "NOTICE" "README.md" "BUILD_DATE")
 
 for FILE in "${REQUIRED_FILES[@]}"; do
   if [ ! -f "${SRC_DIR}/$FILE" ]; then

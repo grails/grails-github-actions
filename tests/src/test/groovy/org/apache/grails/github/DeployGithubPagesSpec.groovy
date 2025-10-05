@@ -29,11 +29,12 @@ class DeployGithubPagesSpec extends Specification {
 
     private Map<String, String> getProjectFiles() {
         [
-            'gradle.properties': 'projectVersion=7.0.0-SNAPSHOT',
-            'docs/index.html': '<html><body>Welcome to the Grails Documentation</body></html>',
-            'docs/ghpages.html': '<html><body>Welcome to the Grails GitHub Pages</body></html>',
+                'gradle.properties': 'projectVersion=7.0.0-SNAPSHOT',
+                'docs/index.html'  : '<html><body>Welcome to the Grails Documentation</body></html>',
+                'docs/ghpages.html': '<html><body>Welcome to the Grails GitHub Pages</body></html>',
         ]
     }
+
     private Map<String, String> getDefaultEnvironment(GitHubDockerAction action, GitHubRepoMock gitRepo) {
         def env = action.getDefaultEnvironment()
 
@@ -86,7 +87,7 @@ class DeployGithubPagesSpec extends Specification {
         gitRepo.getFileContents('gradle.properties', 'main') == 'projectVersion=7.0.0-SNAPSHOT'
 
         and: 'main did not add any folders'
-        gitRepo.getFolders( 'main') == ['docs']
+        gitRepo.getFolders('main') == ['docs']
 
         and: 'gh-pages added expected folders'
         gitRepo.getFolders('gh-pages') == ['snapshot']
@@ -109,7 +110,7 @@ class DeployGithubPagesSpec extends Specification {
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], getProjectFiles())
         gitRepo.createDivergedBranch([
-                'index.html': 'will be replaced',
+                'index.html'         : 'will be replaced',
                 'snapshot/index.html': 'will also be replaced'
         ], 'gh-pages')
         gitRepo.stageRepositoryForAction('main', false)
@@ -145,7 +146,7 @@ class DeployGithubPagesSpec extends Specification {
         gitRepo.getFileContents('gradle.properties', 'main') == 'projectVersion=7.0.0-SNAPSHOT'
 
         and: 'main did not add any folders'
-        gitRepo.getFolders( 'main') == ['docs']
+        gitRepo.getFolders('main') == ['docs']
 
         and: 'gh-pages replaced expected folders'
         gitRepo.getFolders('gh-pages') == ['snapshot']
@@ -196,7 +197,7 @@ class DeployGithubPagesSpec extends Specification {
         gitRepo.getFileContents('gradle.properties', 'main') == 'projectVersion=7.0.0-SNAPSHOT'
 
         and: 'main did not add any folders'
-        gitRepo.getFolders( 'main') == ['docs']
+        gitRepo.getFolders('main') == ['docs']
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
@@ -247,7 +248,7 @@ class DeployGithubPagesSpec extends Specification {
         gitRepo.getFileContents('gradle.properties', 'main') == 'projectVersion=7.0.0-SNAPSHOT'
 
         and: 'main did not add any folders'
-        gitRepo.getFolders( 'main') == ['docs']
+        gitRepo.getFolders('main') == ['docs']
 
         and: 'gh-pages added expected folders'
         gitRepo.getFolders('gh-pages') == ['snapshot']
@@ -300,7 +301,7 @@ class DeployGithubPagesSpec extends Specification {
         gitRepo.getFileContents('gradle.properties', 'main') == 'projectVersion=7.0.0-SNAPSHOT'
 
         and: 'main did not add any folders'
-        gitRepo.getFolders( 'main') == ['docs']
+        gitRepo.getFolders('main') == ['docs']
 
         and: 'gh-pages added expected folders'
         gitRepo.getFolders('gh-pages') == ['snapshot']
@@ -353,7 +354,7 @@ class DeployGithubPagesSpec extends Specification {
         gitRepo.getFileContents('gradle.properties', 'main') == 'projectVersion=7.0.0-SNAPSHOT'
 
         and: 'main did not add any folders'
-        gitRepo.getFolders( 'main') == ['docs']
+        gitRepo.getFolders('main') == ['docs']
 
         and: 'gh-pages added expected folders'
         gitRepo.getFolders('gh-pages') == ['snapshot']
@@ -406,7 +407,7 @@ class DeployGithubPagesSpec extends Specification {
         gitRepo.branchExists('gh-pages')
 
         and:
-        gitRepo.getFolders('gh-pages') == ['7.0.0-RC1', 'latest', '7.0.x']
+        gitRepo.getFolders('gh-pages').sort() == ['7.0.0-RC1', '7.0.x', 'latest']
         gitRepo.getFileContents('index.html', 'gh-pages') == '<html><body>Welcome to the Grails GitHub Pages</body></html>'
 
         and:
@@ -418,7 +419,7 @@ class DeployGithubPagesSpec extends Specification {
         gitRepo.getFileContents('gradle.properties', 'main') == 'projectVersion=7.0.0-SNAPSHOT'
 
         and: 'main did not add any folders'
-        gitRepo.getFolders( 'main') == ['docs']
+        gitRepo.getFolders('main') == ['docs']
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
@@ -469,7 +470,7 @@ class DeployGithubPagesSpec extends Specification {
         gitRepo.branchExists('gh-pages')
 
         and:
-        gitRepo.getFolders('gh-pages') == ['7.0.0-RC1', 'latest', '7.0.x']
+        gitRepo.getFolders('gh-pages').sort() == ['7.0.0-RC1', '7.0.x', 'latest']
         gitRepo.getFileContents('index.html', 'gh-pages') == '<html><body>Welcome to the Grails GitHub Pages</body></html>'
 
         and:
@@ -481,7 +482,7 @@ class DeployGithubPagesSpec extends Specification {
         gitRepo.getFileContents('gradle.properties', 'main') == 'projectVersion=7.0.0-SNAPSHOT'
 
         and: 'main did not add any folders'
-        gitRepo.getFolders( 'main') == ['docs']
+        gitRepo.getFolders('main') == ['docs']
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
@@ -532,7 +533,7 @@ class DeployGithubPagesSpec extends Specification {
         gitRepo.branchExists('gh-pages')
 
         and:
-        gitRepo.getFolders('gh-pages') == ['7.0.0-RC1', '7.0.x']
+        gitRepo.getFolders('gh-pages').sort() == ['7.0.0-RC1', '7.0.x']
         gitRepo.getFileContents('index.html', 'gh-pages') == '<html><body>Welcome to the Grails GitHub Pages</body></html>'
 
         and:
@@ -543,7 +544,7 @@ class DeployGithubPagesSpec extends Specification {
         gitRepo.getFileContents('gradle.properties', 'main') == 'projectVersion=7.0.0-SNAPSHOT'
 
         and: 'main did not add any folders'
-        gitRepo.getFolders( 'main') == ['docs']
+        gitRepo.getFolders('main') == ['docs']
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)

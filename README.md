@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Apache Grails (incubating) - GitHub Actions
+# Apache Grails - GitHub Actions
 
 [![CI](https://github.com/apache/grails-github-actions/actions/workflows/ci.yml/badge.svg?event=push)](https://github.com/apache/grails-github-actions/actions/workflows/ci.yml)
 [![Users Mailing List](https://img.shields.io/badge/Users_Mailing_List-feb571)](https://lists.apache.org/list.html?users@grails.apache.org)
