@@ -165,6 +165,10 @@ fi
 # SOURCE_FOLDER - the relative path of the source documentation folder from the root of the repo
 set_path_value_or_error "${SOURCE_FOLDER}" "" "SOURCE_FOLDER"
 
+# TARGET_FOLDER - the base folder to publish documentation to
+set_path_value_or_error "${TARGET_FOLDER}" "." "TARGET_FOLDER"
+mkdir -p "${TARGET_FOLDER}"
+
 # TARGET_SUBFOLDER - an optional sub folder to publish to
 set_path_value_or_error "${TARGET_SUBFOLDER}" "." "TARGET_SUBFOLDER"
 if [ "${TARGET_SUBFOLDER}" == "." ]; then
@@ -230,11 +234,11 @@ if [[ "$GRADLE_PUBLISH_RELEASE" == "false" ]]; then
   echo "Snapshot detected"
 
   # Subfolder support
-  BASE_PUBLISH_PATH="./${LAST_SNAPSHOT_FOLDER}"
+  BASE_PUBLISH_PATH="${TARGET_FOLDER}/${LAST_SNAPSHOT_FOLDER}"
   if [ -n "${TARGET_SUBFOLDER}" ]; then
-    PUBLISH_PATH="./${LAST_SNAPSHOT_FOLDER}/${TARGET_SUBFOLDER}"
-  else    
-    PUBLISH_PATH="./${LAST_SNAPSHOT_FOLDER}"
+    PUBLISH_PATH="${TARGET_FOLDER}/${LAST_SNAPSHOT_FOLDER}/${TARGET_SUBFOLDER}"
+  else
+    PUBLISH_PATH="${TARGET_FOLDER}/${LAST_SNAPSHOT_FOLDER}"
   fi
 
   publish_artifacts
@@ -257,11 +261,11 @@ else
 
   # Publish to the specific version folder
   echo "::group::Publishing Specific Release Version: ${VERSION}"
-  BASE_PUBLISH_PATH="./${VERSION}"
+  BASE_PUBLISH_PATH="${TARGET_FOLDER}/${VERSION}"
   if [ -n "${TARGET_SUBFOLDER}" ]; then
-    PUBLISH_PATH="./${VERSION}/${TARGET_SUBFOLDER}"
-  else    
-    PUBLISH_PATH="./${VERSION}"
+    PUBLISH_PATH="${TARGET_FOLDER}/${VERSION}/${TARGET_SUBFOLDER}"
+  else
+    PUBLISH_PATH="${TARGET_FOLDER}/${VERSION}"
   fi
   publish_artifacts
   echo "Published release documentation to ${PUBLISH_PATH}"
@@ -271,11 +275,11 @@ else
   genericVersionFolder="${VERSION%.*}"
   genericVersionFolder="${genericVersionFolder}.x"
   echo "::group::Publishing Generic Release Version: ${genericVersionFolder}"
-  BASE_PUBLISH_PATH="./${genericVersionFolder}"
+  BASE_PUBLISH_PATH="${TARGET_FOLDER}/${genericVersionFolder}"
   if [ -n "${TARGET_SUBFOLDER}" ]; then
-    PUBLISH_PATH="./${genericVersionFolder}/${TARGET_SUBFOLDER}"
+    PUBLISH_PATH="${TARGET_FOLDER}/${genericVersionFolder}/${TARGET_SUBFOLDER}"
   else
-    PUBLISH_PATH="./${genericVersionFolder}"
+    PUBLISH_PATH="${TARGET_FOLDER}/${genericVersionFolder}"
   fi
   publish_artifacts
   echo "Published release documentation to ${genericVersionFolder}"
@@ -285,11 +289,11 @@ else
   if [[ "$SKIP_RELEASE_FOLDER" == "false" ]]; then
     if is_highest_version "${genericVersionFolder}"; then
       echo "::group::Overwriting ${LAST_RELEASE_FOLDER} with the latest release documentation"
-      BASE_PUBLISH_PATH="./${LAST_RELEASE_FOLDER}"
+      BASE_PUBLISH_PATH="${TARGET_FOLDER}/${LAST_RELEASE_FOLDER}"
       if [ -n "${TARGET_SUBFOLDER}" ]; then
-        PUBLISH_PATH="./${LAST_RELEASE_FOLDER}/${TARGET_SUBFOLDER}"
-      else    
-        PUBLISH_PATH="./${LAST_RELEASE_FOLDER}"
+        PUBLISH_PATH="${TARGET_FOLDER}/${LAST_RELEASE_FOLDER}/${TARGET_SUBFOLDER}"
+      else
+        PUBLISH_PATH="${TARGET_FOLDER}/${LAST_RELEASE_FOLDER}"
       fi
       publish_artifacts
       echo "Published a copy of documentation to ${PUBLISH_PATH}"
