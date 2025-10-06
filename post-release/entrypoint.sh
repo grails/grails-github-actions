@@ -97,7 +97,7 @@ echo -n "Retrieving current milestone number: "
 milestone_number=`curl -s ${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/milestones | jq -c ".[] | select (.title == \"${RELEASE_VERSION}\") | .number" | sed -e 's/"//g'`
 echo "Found Milestone Id: $milestone_number"
 echo "Closing current milestone"
-curl -s --request PATCH -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Content-Type: application/json" ${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/milestones/$milestone_number --data '{"state":"closed"}'
+curl -s --request PATCH -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Content-Type: application/json" "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/milestones/$milestone_number" --data '{"state":"closed"}'
 set -e
 echo "::endgroup::"
 
@@ -176,4 +176,11 @@ if ! gh pr create \
 else
     cat /tmp/pr-url
 fi
+echo "::endgroup::"
+
+echo "::group::Update Release to Latest"
+curl -fvs --request PATCH \
+  -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Content-Type: application/json" \
+  "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG_PREFIX}${RELEASE_VERSION}" \
+  --data '{"prerelease": false, "make_latest": "true"}'
 echo "::endgroup::"
