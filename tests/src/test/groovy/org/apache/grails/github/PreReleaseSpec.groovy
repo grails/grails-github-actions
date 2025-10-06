@@ -74,6 +74,58 @@ class PreReleaseSpec extends Specification {
         action.close()
     }
 
+    def 'success - different property file name'() {
+        given:
+        Network net = Network.newNetwork()
+
+        and:
+        GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'v7.0.0-RC1', targetBranch: 'main', targetVersion: '7.0.0-SNAPSHOT')
+        GitHubDockerAction action = new GitHubDockerAction('pre-release', release)
+
+        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo.init()
+        gitRepo.populateRepository('7.0.0-SNAPSHOT', 'v7.0.0-RC1', [], [
+                'README.md'     : '# demo\n',
+                'foo.properties': "projectVersion=7.0.0-SNAPSHOT\n"
+        ])
+        gitRepo.stageRepositoryForAction('v7.0.0-RC1', true)
+
+        and:
+        def env = action.getDefaultEnvironment()
+        env['PROPERTY_FILE_NAME'] = 'foo.properties'
+
+        and:
+        action.createContainer(env, net)
+
+        when:
+        action.runAction()
+
+        then:
+        action.actionExitCode == 0L
+        action.actionLogs
+
+        and: 'release version'
+        action.getActionGroupLogs('Setup').contains('Release Version: 7.0.0-RC1')
+
+        and: 'next version'
+        action.getActionGroupLogs('Pushing Project Changes').contains('Pushing release version and recreating v7.0.0-RC1 tag')
+
+        and: 'target branch'
+        action.getActionGroupLogs('Updating Release for Project Changes').contains('Pre Release steps complete')
+
+        and: 'project version updated'
+        action.workspacePath.resolve('foo.properties').toFile().text.contains("projectVersion=7.0.0-RC1")
+
+        and:
+        gitRepo.getRefProjectVersion('main', 'foo.properties') == '7.0.0-SNAPSHOT'
+        gitRepo.getRefProjectVersion('v7.0.0-RC1', 'foo.properties') == '7.0.0-RC1'
+
+        cleanup:
+        System.out.println("Container logs:\n${action.actionLogs}" as String)
+        gitRepo?.close()
+        action.close()
+    }
+
     def 'success - tag with custom prefix updated with version'() {
         given:
         Network net = Network.newNetwork()

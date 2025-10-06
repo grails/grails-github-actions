@@ -422,13 +422,13 @@ class GitHubRepoMock implements Closeable {
         }
     }
 
-    String getRefProjectVersion(String refName) {
-        String contents = getFileContents('gradle.properties', refName)
+    String getRefProjectVersion(String refName, String propertyFilename = 'gradle.properties') {
+        String contents = getFileContents(propertyFilename, refName)
         def matcher = (contents =~ /projectVersion=(.+)/)
         if (matcher) {
             return matcher[0][1] as String
         } else {
-            throw new IllegalStateException("Could not find projectVersion in 'gradle.properties' for ref $refName" as String)
+            throw new IllegalStateException("Could not find projectVersion in '$propertyFilename' for ref $refName" as String)
         }
     }
 

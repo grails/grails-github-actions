@@ -76,6 +76,7 @@ set_value_or_error "${GITHUB_EVENT_PATH}" "" "GITHUB_EVENT_PATH"
 set_value_or_error "${GITHUB_API_URL}" "" "GITHUB_API_URL"
 set_value_or_error "${RELEASE_VERSION}" "${GITHUB_REF#refs/*/}" "RELEASE_VERSION"
 set_value_or_error "${RELEASE_TAG_PREFIX}" "v" "RELEASE_TAG_PREFIX"
+set_value_or_error "${PROPERTY_FILE_NAME}" "gradle.properties" "PROPERTY_FILE_NAME"
 
 echo "::group::Determine release version"
 if [[ ! "${RELEASE_VERSION}" =~ ^(${RELEASE_TAG_PREFIX})?[^.]+\.[^.]+\.[^.]+$ ]]; then
@@ -130,11 +131,11 @@ echo "::endgroup::"
 
 echo "::group::Add commit to update to next version"
 echo "Setting new snapshot version"
-sed -i "s/^projectVersion\=.*$/projectVersion\=${NEXT_VERSION}-SNAPSHOT/" gradle.properties
-sed -i "s/^version\=.*$/version\=${NEXT_VERSION}-SNAPSHOT/" gradle.properties
-cat gradle.properties
+sed -i "s/^projectVersion\=.*$/projectVersion\=${NEXT_VERSION}-SNAPSHOT/" "${PROPERTY_FILE_NAME}"
+sed -i "s/^version\=.*$/version\=${NEXT_VERSION}-SNAPSHOT/" "${PROPERTY_FILE_NAME}"
+cat "${PROPERTY_FILE_NAME}"
 printf "\n"
-git add gradle.properties
+git add "${PROPERTY_FILE_NAME}"
 
 if [[ -n "${RELEASE_SCRIPT_PATH}" && -x "${GITHUB_WORKSPACE}/${RELEASE_SCRIPT_PATH}" ]]; then
   echo "Executing additional release script at ${GITHUB_WORKSPACE}/${RELEASE_SCRIPT_PATH}"

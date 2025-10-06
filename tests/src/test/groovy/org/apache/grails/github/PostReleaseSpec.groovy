@@ -83,6 +83,65 @@ class PostReleaseSpec extends Specification {
         action.close()
     }
 
+    def "success - different property file name"() {
+        given:
+        Network net = Network.newNetwork()
+
+        and:
+        GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'v7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
+        GitHubDockerAction action = new GitHubDockerAction('post-release', release, new GitHubCliMock())
+
+        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo.init()
+        gitRepo.populateRepository('7.0.0-SNAPSHOT', 'v7.0.0-RC1', ['7.0.x'], [
+                'README.md'     : '# demo\n',
+                'foo.properties': "projectVersion=7.0.0-SNAPSHOT\n"
+        ])
+        gitRepo.storeFiles(['foo.properties': "projectVersion=7.0.0-RC1\n"], 'v7.0.0-RC1')
+        gitRepo.stageRepositoryForAction('v7.0.0-RC1', true)
+
+        and:
+        def env = action.getDefaultEnvironment()
+        env['GH_MOCK_PR_CREATE'] = 'create'
+        env['PROPERTY_FILE_NAME'] = 'foo.properties'
+
+        and:
+        action.createContainer(env, net)
+
+        when:
+        action.runAction()
+
+        then:
+        action.actionExitCode == 0L
+        action.actionLogs
+
+        and: 'release version'
+        action.getActionGroupLogs('Determine release version') == 'Release Version: 7.0.0-RC1'
+
+        and: 'next version'
+        action.getActionGroupLogs('Determine next version') == 'Next Version: 7.0.0'
+
+        and: 'target branch'
+        action.getActionGroupLogs('Determine target merge branch').contains('Target Branch is refs/heads/v7.0.0-RC1')
+        action.getActionGroupLogs('Determine target merge branch').contains('Pruned Target Branch is v7.0.0-RC1')
+
+        and: 'project version reverted'
+        action.workspacePath.resolve('foo.properties').toFile().text.contains("projectVersion=7.0.0-SNAPSHOT")
+
+        and:
+        gitRepo.branchExists('merge-back-7.0.0-RC1')
+
+        and:
+        gitRepo.getRefProjectVersion('merge-back-7.0.0-RC1', 'foo.properties') == '7.0.0-SNAPSHOT'
+        gitRepo.getRefProjectVersion('main', 'foo.properties') == '7.0.0-SNAPSHOT'
+        gitRepo.getRefProjectVersion('v7.0.0-RC1', 'foo.properties') == '7.0.0-RC1'
+
+        cleanup:
+        System.out.println("Container logs:\n${action.actionLogs}" as String)
+        gitRepo?.close()
+        action.close()
+    }
+
     def 'success - merge pr created - tag v7.0.0-RC1 to 7.0.x branch'() {
         given:
         Network net = Network.newNetwork()

@@ -33,7 +33,8 @@ Please note that this action allows users to simply create a GitHub release and 
 ## Environment Variables
 * (required) `RELEASE_VERSION` - The version of the release being created.
 * (optional) `RELEASE_TAG_PREFIX` - The prefix of the release tag. If not set, it will default to `v` (e.g., `v1.0.0`).
-* (optional) `RELEASE_SCRIPT_PATH` - An optional path to a custom shell script that will be executed after the version replacement in `gradle.properties`, but prior to commiting the project changes.
+* (optional) `PROPERTY_FILE_NAME` - defaults to `gradle.properties`, the property file containing the version property to update
+* (optional) `RELEASE_SCRIPT_PATH` - An optional path to a custom shell script that will be executed after the version replacement in the property file defined by `PROPERTY_FILE_NAME`, but prior to commiting the project changes.
 
 ## Example Usage
 
