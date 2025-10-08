@@ -178,9 +178,35 @@ else
 fi
 echo "::endgroup::"
 
-echo "::group::Update Release to Latest"
-curl -fvs --request PATCH \
-  -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Content-Type: application/json" \
-  "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG_PREFIX}${RELEASE_VERSION}" \
-  --data '{"prerelease": false, "make_latest": "true"}'
+echo "::group::Update Release Status"
+release_update_payload=()
+if [[ -n "${RELEASE_PRE_RELEASE}" ]]; then
+  if [[ "${RELEASE_PRE_RELEASE}" != "true" && "${RELEASE_PRE_RELEASE}" != "false" ]]; then
+    echo "ERROR: RELEASE_PRE_RELEASE must be 'true' or 'false' if set. Got: '${RELEASE_PRE_RELEASE}'" >&2
+    exit 1
+  fi
+  release_update_payload+=("\"prerelease\": ${RELEASE_PRE_RELEASE}")
+fi
+
+if [[ -n "${RELEASE_LATEST}" ]]; then
+  if [[ "${RELEASE_LATEST}" != "true" && "${RELEASE_LATEST}" != "false" ]]; then
+    echo "ERROR: RELEASE_LATEST must be 'true' or 'false' if set. Got: '${RELEASE_LATEST}'" >&2
+    exit 1
+  fi
+  release_update_payload+=("\"make_latest\": \"${RELEASE_LATEST}\"")
+fi
+
+if [[ ${#release_update_payload[@]} -eq 0 ]]; then
+  echo "No release flags set (RELEASE_PRE_RELEASE / RELEASE_LATEST). Skipping GitHub Release update."
+else
+  json_payload_content=$(printf "%s, " "${release_update_payload[@]}")
+  json_payload_content="${json_payload_content%, }"  # Remove trailing comma-space
+  json_payload="{${json_payload_content}}"
+
+  echo "PATCH payload: ${json_payload}"
+  curl -fvs --request PATCH \
+    -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Content-Type: application/json" \
+    "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG_PREFIX}${RELEASE_VERSION}" \
+    --data "${json_payload}"
+fi
 echo "::endgroup::"

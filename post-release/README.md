@@ -41,6 +41,8 @@ Please note that the next version is derived from the provided `RELEASE_VERSION`
 * (optional) `RELEASE_TAG_PREFIX` - The prefix of the release tag. If not set, it will default to `v` (e.g., `v1.0.0`).
 * (optional) `PROPERTY_FILE_NAME` - defaults to `gradle.properties`, the property file containing the version property to update
 * (optional) `RELEASE_SCRIPT_PATH` - An optional path to a custom shell script that will be executed after the version replacement in property file defined by `PROPERTY_FILE_NAME`, but prior to commiting the project changes.
+* (optional) `RELEASE_LATEST` - An optional boolean flag to update the GitHub release to be or not to be the latest. If not defined, no update will be performed.
+* (optional) `RELEASE_PRE_RELEASE` - An optional boolean flag to update the GitHub release to be or not to be a pre-release. If not defined, no update will be performed.
 
 ## Example Usage
 
