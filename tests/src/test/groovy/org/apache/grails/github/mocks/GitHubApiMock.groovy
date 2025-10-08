@@ -61,6 +61,24 @@ class GitHubApiMock implements Closeable {
                 )
         )
 
+        githubApi.stubFor(WireMock.patch(WireMock.urlEqualTo("/repos/${version.repository}/releases/tags/${version.tagName}"))
+                .withHeader("Authorization", WireMock.matching("(?i)Bearer\\s+.+")) // accept any bearer token
+                .withHeader("Content-Type", WireMock.containing("application/json"))
+                .withRequestBody(WireMock.equalToJson("{\"make_latest\":  \"true\"}", true, true))
+                .willReturn(WireMock.aResponse()
+                        .withStatus(200)
+                )
+        )
+
+        githubApi.stubFor(WireMock.patch(WireMock.urlEqualTo("/repos/${version.repository}/releases/tags/${version.tagName}"))
+                .withHeader("Authorization", WireMock.matching("(?i)Bearer\\s+.+")) // accept any bearer token
+                .withHeader("Content-Type", WireMock.containing("application/json"))
+                .withRequestBody(WireMock.equalToJson("{\"prerelease\": false}", true, true))
+                .willReturn(WireMock.aResponse()
+                        .withStatus(200)
+                )
+        )
+
         githubApi.stubFor(WireMock.get(WireMock.urlPathEqualTo("/repos/${version.repository}/milestones"))
                 .willReturn(WireMock.aResponse()
                         .withStatus(200)
