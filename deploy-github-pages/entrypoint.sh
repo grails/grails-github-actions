@@ -205,7 +205,7 @@ git config --global http.postBuffer 157286400
 if git ls-remote --heads "${GIT_REPO_URL}" "${DOCUMENTATION_BRANCH}" | grep -q "refs/heads/${DOCUMENTATION_BRANCH}"; then
   echo "::group::Checkout documentation branch"
   echo "documentation branch found, cloning"
-  git clone "${GIT_REPO_URL}" "${DOCUMENTATION_BRANCH}" --branch "${DOCUMENTATION_BRANCH}" --single-branch
+  git clone "${GIT_REPO_URL}" "${DOCUMENTATION_BRANCH}" --branch "${DOCUMENTATION_BRANCH}" --single-branch --depth 1
   cd ${DOCUMENTATION_BRANCH}
   echo "::endgroup::"
 else
