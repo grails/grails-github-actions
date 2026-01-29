@@ -32,7 +32,7 @@ if (isReproducibleBuild) {
 }
 
 develocity {
-    server = 'https://develocity.apache.org/'
+    server = 'https://develocity.apache.org'
     buildScan {
         tag('grails')
         tag('grails-github-actions')
