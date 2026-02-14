@@ -78,4 +78,102 @@ other=another
         gitRepo?.close()
         action.close()
     }
+
+    def "export gradle properties with prefix"() {
+        given:
+        Network net = Network.newNetwork()
+
+        and:
+        GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
+        GitHubDockerAction action = new GitHubDockerAction('export-gradle-properties', release, new GitHubCliMock())
+
+        and:
+        String gradleProperties = """
+java=17.0.7
+foo=testing
+other=another
+#buz=test
+"""
+
+        and:
+        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo.init()
+        gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], ['gradle.properties': gradleProperties])
+        gitRepo.stageRepositoryForAction('main', false)
+
+        and:
+        def env = action.getDefaultEnvironment()
+
+        and:
+        action.createContainer(env, net)
+
+        and:
+        action.addCommandArgs('./gradle.properties', 'FOO')
+
+        when:
+        action.runAction()
+
+        then:
+        action.actionExitCode == 0L
+        action.actionLogs
+
+        and:
+        Files.exists(action.baseDir.toPath().resolve('github-env'))
+
+        def fileContent = action.baseDir.toPath().resolve('github-env').toFile().text
+        fileContent == 'FOO_java=17.0.7\nFOO_foo=testing\nFOO_other=another\n'
+
+        cleanup:
+        System.out.println("Container logs:\n${action.actionLogs}" as String)
+        gitRepo?.close()
+        action.close()
+    }
+
+    def "export gradle properties with prefix ending in underscore"() {
+        given:
+        Network net = Network.newNetwork()
+
+        and:
+        GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
+        GitHubDockerAction action = new GitHubDockerAction('export-gradle-properties', release, new GitHubCliMock())
+
+        and:
+        String gradleProperties = """
+java=17.0.7
+foo=testing
+"""
+
+        and:
+        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo.init()
+        gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], ['gradle.properties': gradleProperties])
+        gitRepo.stageRepositoryForAction('main', false)
+
+        and:
+        def env = action.getDefaultEnvironment()
+
+        and:
+        action.createContainer(env, net)
+
+        and:
+        action.addCommandArgs('./gradle.properties', 'BAR_')
+
+        when:
+        action.runAction()
+
+        then:
+        action.actionExitCode == 0L
+        action.actionLogs
+
+        and:
+        Files.exists(action.baseDir.toPath().resolve('github-env'))
+
+        def fileContent = action.baseDir.toPath().resolve('github-env').toFile().text
+        fileContent == 'BAR_java=17.0.7\nBAR_foo=testing\n'
+
+        cleanup:
+        System.out.println("Container logs:\n${action.actionLogs}" as String)
+        gitRepo?.close()
+        action.close()
+    }
 }
