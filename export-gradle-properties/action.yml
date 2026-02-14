@@ -20,8 +20,13 @@ inputs:
     description: 'Location of the properties file'  
     required: true
     default: gradle.properties
+  prefix:
+    description: 'Optional prefix to add to environment variable names (e.g., FOO_ will create FOO_propertyName)'
+    required: false
+    default: ''
 runs:
   using: 'docker'
   image: 'Dockerfile'
   args:
     - ${{ inputs.file }}
+    - ${{ inputs.prefix }}

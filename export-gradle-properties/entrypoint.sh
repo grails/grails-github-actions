@@ -20,8 +20,15 @@
 #
 
 # $1 == file
+# $2 == prefix (optional)
 
 set -e
+
+PREFIX="$2"
+# Add underscore separator if prefix is provided and doesn't already end with one
+if [[ -n "${PREFIX}" && "${PREFIX}" != *_ ]]; then
+	PREFIX="${PREFIX}_"
+fi
 
 while read -r line
 do
@@ -34,11 +41,15 @@ do
 	if [[ "$line" == *"="* ]];
 	then
 		key=`echo $line | cut -d \= -f 1`
-		value=`echo $line | cut -d \= -f 2`	
+		value=`echo $line | cut -d \= -f 2-`
+
+		# Strip inline comments (# followed by space or end of line)
+		# First trim trailing whitespace, then remove # and anything after it if preceded by space
+		value=$(echo "$value" | sed 's/[[:space:]]*#.*//' | sed 's/[[:space:]]*$//')
 
 		echo "$key"
 		echo "$value"
-		echo "$key=$value" >> $GITHUB_ENV
+		echo "${PREFIX}${key}=$value" >> $GITHUB_ENV
 	fi
 
 done < "$1"

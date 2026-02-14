@@ -20,7 +20,14 @@ limitations under the License.
 
 A GitHub Action that takes a Java properties file (typically `gradle.properties`) and exports each property as an environment variable for use in subsequent steps of your workflow.
 
+## Inputs
+
+- `file` (required): Location of the properties file (default: `gradle.properties`)
+- `prefix` (optional): Prefix to add to environment variable names. If provided without a trailing underscore, one will be added automatically (e.g., `FOO` becomes `FOO_`)
+
 ## Example usage
+
+### Basic usage without prefix
 
 ```yaml
 - name: "Export Gradle Properties"
@@ -31,3 +38,18 @@ A GitHub Action that takes a Java properties file (typically `gradle.properties`
   env:
     PROJECT_VERSION: ${{ env.projectVersion }}
 ```
+
+### Usage with prefix
+
+```yaml
+- name: "Export Gradle Properties with Prefix"
+  uses: apache/grails-github-actions/export-gradle-properties@asf
+  with:
+    prefix: 'FOO'
+- name: "Use the prefixed property"
+  run:
+    echo "${JAVA_VERSION}"
+  env:
+    JAVA_VERSION: ${{ env.FOO_javaVersion }}
+```
+
