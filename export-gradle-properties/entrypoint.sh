@@ -41,7 +41,11 @@ do
 	if [[ "$line" == *"="* ]];
 	then
 		key=`echo $line | cut -d \= -f 1`
-		value=`echo $line | cut -d \= -f 2`	
+		value=`echo $line | cut -d \= -f 2-`
+
+		# Strip inline comments (# followed by space or end of line)
+		# First trim trailing whitespace, then remove # and anything after it if preceded by space
+		value=$(echo "$value" | sed 's/[[:space:]]*#.*//' | sed 's/[[:space:]]*$//')
 
 		echo "$key"
 		echo "$value"
