@@ -46,13 +46,6 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           develocity-access-key: ${{ secrets.GRAILS_DEVELOCITY_ACCESS_KEY  }}
-      - name: "Docker diagnostics"
-        run: |
-          uname -a
-          id
-          ls -la /var/run/docker.sock || true
-          docker version || true
-          docker info || true
       - name: "🔨 Test project"
         working-directory: 'tests'
         run: >
