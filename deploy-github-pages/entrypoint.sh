@@ -321,7 +321,7 @@ MAX_PUSH_ATTEMPTS=5
 PUSH_ATTEMPT=1
 while [ $PUSH_ATTEMPT -le $MAX_PUSH_ATTEMPTS ]; do
   echo "Push attempt ${PUSH_ATTEMPT}/${MAX_PUSH_ATTEMPTS}"
-  if git push "${GIT_REPO_URL}" "${DOCUMENTATION_BRANCH}" 2>&1; then
+  if git push "${GIT_REPO_URL}" "${DOCUMENTATION_BRANCH}"; then
     echo "Deployment successful!"
     break
   fi
@@ -330,7 +330,10 @@ while [ $PUSH_ATTEMPT -le $MAX_PUSH_ATTEMPTS ]; do
     exit 1
   fi
   echo "Push rejected, pulling remote changes and retrying..."
-  git pull --rebase "${GIT_REPO_URL}" "${DOCUMENTATION_BRANCH}"
   PUSH_ATTEMPT=$((PUSH_ATTEMPT + 1))
+  BACKOFF=$(( (PUSH_ATTEMPT * 2) + (RANDOM % 3) ))
+  echo "Waiting ${BACKOFF}s before retry..."
+  sleep $BACKOFF
+  git pull --rebase "${GIT_REPO_URL}" "${DOCUMENTATION_BRANCH}"
 done
 echo "::endgroup::"
