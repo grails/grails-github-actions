@@ -673,4 +673,185 @@ class DeployGithubPagesSpec extends Specification {
         gitRepo?.close()
         action.close()
     }
+
+    def "push retry - logs show successful deployment on first attempt"() {
+        given:
+        Network net = Network.newNetwork()
+
+        and:
+        GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
+        GitHubDockerAction action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
+
+        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo.init()
+        gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], getProjectFiles())
+        gitRepo.stageRepositoryForAction('main', false)
+
+        and:
+        def env = getDefaultEnvironment(action, gitRepo)
+        env['GRADLE_PUBLISH_RELEASE'] = 'false'
+        env['SOURCE_FOLDER'] = 'docs'
+        env['VERSION'] = '7.0.0-SNAPSHOT'
+
+        and:
+        action.createContainer(env, net)
+
+        when:
+        action.runAction()
+
+        then:
+        action.actionExitCode == 0L
+
+        and: 'retry loop logs first attempt and success'
+        def commitLogs = action.getActionGroupLogs('Committing Changes')
+        commitLogs.contains('Push attempt 1/5')
+        commitLogs.contains('Deployment successful!')
+        !commitLogs.contains('Push attempt 2/5')
+
+        and: 'docs deployed'
+        gitRepo.branchExists('gh-pages')
+        gitRepo.getFileContents('snapshot/index.html', 'gh-pages') == '<html><body>Welcome to the Grails Documentation</body></html>'
+
+        cleanup:
+        System.out.println("Container logs:\n${action.actionLogs}" as String)
+        gitRepo?.close()
+        action.close()
+    }
+
+    def "push retry - succeeds after initial push rejection"() {
+        given:
+        Network net = Network.newNetwork()
+
+        and:
+        GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
+        GitHubDockerAction action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
+
+        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo.init()
+        gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], getProjectFiles())
+        gitRepo.createDivergedBranch([
+                'index.html'         : '<html><body>Existing root page</body></html>',
+                'snapshot/index.html': '<html><body>Existing snapshot</body></html>'
+        ], 'gh-pages')
+        gitRepo.stageRepositoryForAction('main', false)
+
+        and: 'install git wrapper that rejects the first push attempt'
+        def gitWrapper = action.mockPath.resolve('git').toFile()
+        gitWrapper.text = '''\
+#!/bin/sh
+REAL_GIT=/usr/bin/git
+MARKER=/tmp/git_push_rejected_once
+if [ "$1" = "push" ]; then
+  if [ ! -f "$MARKER" ]; then
+    touch "$MARKER"
+    echo "error: failed to push some refs" >&2
+    echo "hint: Updates were rejected because the remote contains work that you do not" >&2
+    echo "hint: have locally. Integrate the remote changes before pushing again." >&2
+    exit 1
+  fi
+fi
+exec "$REAL_GIT" "$@"
+'''
+        gitWrapper.executable = true
+
+        and:
+        def env = getDefaultEnvironment(action, gitRepo)
+        env['GRADLE_PUBLISH_RELEASE'] = 'false'
+        env['SOURCE_FOLDER'] = 'docs'
+        env['VERSION'] = '7.0.0-SNAPSHOT'
+
+        and:
+        action.createContainer(env, net)
+
+        when:
+        action.runAction()
+
+        then:
+        action.actionExitCode == 0L
+
+        and: 'first push was rejected and retry occurred'
+        action.actionLogs.contains('Push attempt 1/5')
+        action.actionLogs.contains('Push rejected, pulling remote changes and retrying...')
+        action.actionLogs.contains('Push attempt 2/5')
+        action.actionLogs.contains('Deployment successful!')
+
+        and: 'docs deployed successfully despite initial rejection'
+        gitRepo.branchExists('gh-pages')
+        gitRepo.getFileContents('snapshot/index.html', 'gh-pages') == '<html><body>Welcome to the Grails Documentation</body></html>'
+        gitRepo.getFileContents('index.html', 'gh-pages') == '<html><body>Welcome to the Grails GitHub Pages</body></html>'
+
+        cleanup:
+        System.out.println("Container logs:\n${action.actionLogs}" as String)
+        gitRepo?.close()
+        action.close()
+    }
+
+    def "push retry - fails after maximum push attempts"() {
+        given:
+        Network net = Network.newNetwork()
+
+        and:
+        GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
+        GitHubDockerAction action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
+
+        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo.init()
+        gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], getProjectFiles())
+        gitRepo.createDivergedBranch([
+                'index.html'         : '<html><body>Existing root page</body></html>',
+                'snapshot/index.html': '<html><body>Existing snapshot</body></html>'
+        ], 'gh-pages')
+        gitRepo.stageRepositoryForAction('main', false)
+
+        and: 'install git wrapper that always rejects pushes'
+        def gitWrapper = action.mockPath.resolve('git').toFile()
+        gitWrapper.text = '''\
+#!/bin/sh
+REAL_GIT=/usr/bin/git
+if [ "$1" = "push" ]; then
+  echo "error: failed to push some refs" >&2
+  exit 1
+fi
+exec "$REAL_GIT" "$@"
+'''
+        gitWrapper.executable = true
+
+        and:
+        def env = getDefaultEnvironment(action, gitRepo)
+        env['GRADLE_PUBLISH_RELEASE'] = 'false'
+        env['SOURCE_FOLDER'] = 'docs'
+        env['VERSION'] = '7.0.0-SNAPSHOT'
+
+        and:
+        action.createContainer(env, net)
+
+        when:
+        Exception startupException = null
+        try {
+            action.runAction()
+        } catch (Exception e) {
+            startupException = e
+        }
+
+        then: 'action failed'
+        startupException != null || action.actionExitCode != 0L
+
+        and: 'all 5 push attempts were made'
+        action.actionLogs.contains('Push attempt 1/5')
+        action.actionLogs.contains('Push attempt 2/5')
+        action.actionLogs.contains('Push attempt 3/5')
+        action.actionLogs.contains('Push attempt 4/5')
+        action.actionLogs.contains('Push attempt 5/5')
+
+        and: 'error message logged after exhausting retries'
+        action.actionLogs.contains('ERROR: Push failed after 5 attempts.')
+
+        and: 'deployment did not succeed'
+        !action.actionLogs.contains('Deployment successful!')
+
+        cleanup:
+        System.out.println("Container logs:\n${action.actionLogs}" as String)
+        gitRepo?.close()
+        action.close()
+    }
 }

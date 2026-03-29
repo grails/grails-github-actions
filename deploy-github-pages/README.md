@@ -30,6 +30,10 @@ For snapshots, the following folders are published:
 
 Note: snapshots ignore the VERSION parameter and always publish to the `snapshot` folder.
 
+## Push Retry Logic
+
+When multiple branches build concurrently, their documentation deployments may race to push to the same documentation branch. To handle this, the action includes automatic retry logic: if a push is rejected (e.g., because another build pushed first), it will pull remote changes with rebase and retry, up to 5 attempts. If all attempts fail, the action exits with an error.
+
 ## Requirements
 If using the default `GITHUB_TOKEN`, this action requires permission `contents: write`. Otherwise, the provided `GH_TOKEN` must be able to commit to the documentation branch.
 
