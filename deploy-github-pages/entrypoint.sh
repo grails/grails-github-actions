@@ -316,6 +316,21 @@ git status
 
 echo "Committing changes."
 git commit -m "Deploying to documentation branch - $(date +"%T")" --quiet --allow-empty
-git push "${GIT_REPO_URL}" "${DOCUMENTATION_BRANCH}"
-echo "Deployment successful!"
+
+MAX_PUSH_ATTEMPTS=5
+PUSH_ATTEMPT=1
+while [ $PUSH_ATTEMPT -le $MAX_PUSH_ATTEMPTS ]; do
+  echo "Push attempt ${PUSH_ATTEMPT}/${MAX_PUSH_ATTEMPTS}"
+  if git push "${GIT_REPO_URL}" "${DOCUMENTATION_BRANCH}" 2>&1; then
+    echo "Deployment successful!"
+    break
+  fi
+  if [ $PUSH_ATTEMPT -eq $MAX_PUSH_ATTEMPTS ]; then
+    echo "ERROR: Push failed after ${MAX_PUSH_ATTEMPTS} attempts." >&2
+    exit 1
+  fi
+  echo "Push rejected, pulling remote changes and retrying..."
+  git pull --rebase "${GIT_REPO_URL}" "${DOCUMENTATION_BRANCH}"
+  PUSH_ATTEMPT=$((PUSH_ATTEMPT + 1))
+done
 echo "::endgroup::"
