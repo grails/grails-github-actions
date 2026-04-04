@@ -16,6 +16,22 @@
 version: 2
 updates:
   - package-ecosystem: "github-actions"
-    directory: "/" 
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "docker"
+    directory: "/pre-release"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "docker"
+    directory: "/post-release"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "docker"
+    directory: "/deploy-github-pages"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "docker"
+    directory: "/export-gradle-properties"
     schedule:
       interval: "weekly"
