@@ -72,6 +72,7 @@ class PreReleaseSpec extends Specification {
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def 'success - different property file name'() {
@@ -124,6 +125,7 @@ class PreReleaseSpec extends Specification {
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def 'success - tag with custom prefix updated with version'() {
@@ -173,5 +175,6 @@ class PreReleaseSpec extends Specification {
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 }

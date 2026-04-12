@@ -77,6 +77,7 @@ other=another
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def "export gradle properties with prefix"() {
@@ -127,6 +128,7 @@ other=another
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def "export gradle properties with prefix ending in underscore"() {
@@ -175,6 +177,7 @@ foo=testing
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def "export gradle properties with inline comments"() {
@@ -226,6 +229,7 @@ bar=value# no space before hash
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def "export gradle properties with equals signs in values"() {
@@ -275,5 +279,6 @@ base64=dGVzdD0xMjM=
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 }

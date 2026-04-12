@@ -96,6 +96,7 @@ class DeployGithubPagesSpec extends Specification {
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def "ghpages_html is set as root index_html"() {
@@ -155,6 +156,7 @@ class DeployGithubPagesSpec extends Specification {
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def "snapshot - snapshot publishing disabled"() {
@@ -203,6 +205,7 @@ class DeployGithubPagesSpec extends Specification {
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def "snapshot - published with subfolder"() {
@@ -257,6 +260,7 @@ class DeployGithubPagesSpec extends Specification {
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def "snapshot - published without subfolder"() {
@@ -310,6 +314,7 @@ class DeployGithubPagesSpec extends Specification {
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def "snapshot - published to different base path without subfolder"() {
@@ -366,6 +371,7 @@ class DeployGithubPagesSpec extends Specification {
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def "snapshot - version is ignored on snapshot"() {
@@ -419,6 +425,7 @@ class DeployGithubPagesSpec extends Specification {
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def "release - published without subfolder"() {
@@ -481,6 +488,7 @@ class DeployGithubPagesSpec extends Specification {
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def "release - published to different base path without subfolder"() {
@@ -547,6 +555,7 @@ class DeployGithubPagesSpec extends Specification {
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def "release - published with subfolder"() {
@@ -610,6 +619,7 @@ class DeployGithubPagesSpec extends Specification {
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def "release - skip publishing to latest"() {
@@ -672,6 +682,7 @@ class DeployGithubPagesSpec extends Specification {
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def "push retry - logs show successful deployment on first attempt"() {
@@ -716,6 +727,7 @@ class DeployGithubPagesSpec extends Specification {
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def "push retry - succeeds after initial push rejection"() {
@@ -784,6 +796,7 @@ exec "$REAL_GIT" "$@"
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def "push retry - fails after maximum push attempts"() {
@@ -853,5 +866,6 @@ exec "$REAL_GIT" "$@"
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 }

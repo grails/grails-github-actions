@@ -84,6 +84,7 @@ class PostReleaseSpec extends Specification {
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def "success - different property file name"() {
@@ -143,6 +144,7 @@ class PostReleaseSpec extends Specification {
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def 'success - merge pr created - tag v7.0.0-RC1 to 7.0.x branch'() {
@@ -201,6 +203,7 @@ class PostReleaseSpec extends Specification {
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def 'success - labels applied to created merge pr'() {
@@ -383,6 +386,7 @@ class PostReleaseSpec extends Specification {
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def 'success - latest forced update'() {
@@ -443,6 +447,7 @@ class PostReleaseSpec extends Specification {
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def 'success - latest and prerelease forced update'() {
@@ -504,6 +509,7 @@ class PostReleaseSpec extends Specification {
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 
     def 'success - merge pr created - tag v7.0.0-RC1 to main branch'() {
@@ -562,5 +568,6 @@ class PostReleaseSpec extends Specification {
         System.out.println("Container logs:\n${action.actionLogs}" as String)
         gitRepo?.close()
         action.close()
+        net?.close()
     }
 }
