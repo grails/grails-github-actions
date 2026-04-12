@@ -91,6 +91,15 @@ fi
 echo "::group::Merge ${source_branch} into ${target_branch}"
 git checkout -B "${target_branch}" "origin/${target_branch}"
 
+skip_merge_commits="$(git log --format='%H %s' "origin/${target_branch}..${source_ref}" | grep '\[skip merge\]' || true)"
+if [[ -n "${skip_merge_commits}" ]]; then
+  echo "Commits marked with [skip merge] were found between ${source_branch} and ${target_branch}:" >&2
+  printf '%s\n' "${skip_merge_commits}" >&2
+  echo "ERROR: Manual merge required for ${source_branch} -> ${target_branch}." >&2
+  echo "::endgroup::"
+  exit 1
+fi
+
 if git merge --no-ff --no-edit -m "[skip ci] Merge ${source_branch} into ${target_branch}" "${source_ref}"; then
   if git diff --quiet "origin/${target_branch}" HEAD; then
     echo "${target_branch} is already up to date with ${source_branch}."

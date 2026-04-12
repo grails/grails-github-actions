@@ -287,6 +287,10 @@ class GitHubRepoMock implements Closeable {
     }
 
     void storeFiles(Map<String, String> files, String refName) {
+        storeFiles(files, refName, "store files :${files.keySet().join(',')}")
+    }
+
+    void storeFiles(Map<String, String> files, String refName, String commitMessage) {
         Path temp = Files.createTempDirectory('store-files')
         try {
             cloneRepo(temp, refName) { Git git ->
@@ -301,7 +305,7 @@ class GitHubRepoMock implements Closeable {
                         .setAuthor('CI', 'ci@example.com')
                         .setCommitter('CI', 'ci@example.com')
                         .setSign(false)
-                        .setMessage("store files :${files.keySet().join(',')}").call()
+                        .setMessage(commitMessage).call()
 
                 def tagRef = git.repository.findRef("${Constants.R_TAGS + refName}")
                 if (tagRef != null) {

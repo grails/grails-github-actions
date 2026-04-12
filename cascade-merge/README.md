@@ -42,6 +42,7 @@ It is intended to be generic and reusable across repositories that maintain mult
 4. Pushes the target branch when the merge succeeds without conflicts.
 5. Exits with an error if that merge conflicts.
 6. If the current branch is not listed in `branch-order`, the action exits successfully without doing anything.
+7. If the source-only commit set contains a commit message with `[skip merge]`, the action exits with an error and requires a manual merge.
 
 For example, with `7.0.x,7.1.x,8.0.x`:
 
@@ -95,6 +96,16 @@ How this reads in practice:
 * On `7.1.x`, the same workflow effectively means `7.1.x -> 8.0.x`
 * On `8.0.x`, there is no downstream branch, so the action exits without merging anything
 * On any branch not present in `branch-order`, the action exits without merging anything
+
+To block an automatic merge for a specific change, include `[skip merge]` in the commit message. If any commit that would be merged into the downstream branch contains that marker, the action exits with an error and prints that a manual merge is required.
+
+Example commit message:
+
+```text
+docs: update release notes formatting [skip merge]
+```
+
+That commit remains on the source branch, but `cascade-merge` will stop before merging it forward automatically.
 
 Equivalent compact input:
 

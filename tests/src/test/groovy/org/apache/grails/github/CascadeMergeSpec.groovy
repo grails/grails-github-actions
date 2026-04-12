@@ -145,4 +145,46 @@ class CascadeMergeSpec extends Specification {
         gitRepo?.close()
         action.close()
     }
+
+    def 'failure - requires manual merge when source commits include skip merge marker'() {
+        given:
+        Network net = Network.newNetwork()
+
+        and:
+        GitHubVersion release = new GitHubVersion(version: '7.0.0', tagName: null, targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
+        GitHubDockerAction action = new GitHubDockerAction('cascade-merge', release)
+
+        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo.init()
+        gitRepo.populateRepository('7.0.0-SNAPSHOT', null, ['7.0.x', '7.1.x', '8.0.x'])
+        gitRepo.storeFiles(['README.md': '# skip merge change\n'], '7.0.x', 'docs: hold forward merge [skip merge]')
+        gitRepo.stageRepositoryForAction('7.0.x', false)
+
+        and:
+        def env = action.getDefaultEnvironment()
+        env['BRANCH_ORDER'] = '7.0.x,7.1.x,8.0.x'
+
+        and:
+        action.createContainer(env, net)
+
+        when:
+        action.runAction()
+
+        then:
+        def e = thrown(ContainerLaunchException)
+        e.message.contains('Container startup failed')
+
+        and:
+        action.actionLogs.contains('Commits marked with [skip merge] were found between 7.0.x and 7.1.x:')
+        action.actionLogs.contains('docs: hold forward merge [skip merge]')
+        action.actionLogs.contains('ERROR: Manual merge required for 7.0.x -> 7.1.x.')
+
+        and:
+        gitRepo.getFileContents('README.md', '7.1.x') == '# demo\n'
+
+        cleanup:
+        System.out.println("Container logs:\n${action.actionLogs}" as String)
+        gitRepo?.close()
+        action.close()
+    }
 }
