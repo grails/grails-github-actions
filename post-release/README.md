@@ -40,6 +40,7 @@ Please note that the next version is derived from the provided `RELEASE_VERSION`
 * (optional) `RELEASE_VERSION` - The version of the release being closed. If not set, it will be derived from the `GITHUB_REF`, which as part of a release will be the tag name.
 * (optional) `RELEASE_TAG_PREFIX` - The prefix of the release tag. If not set, it will default to `v` (e.g., `v1.0.0`).
 * (optional) `PROPERTY_FILE_NAME` - defaults to `gradle.properties`, the property file containing the version property to update
+* (optional) `PR_LABELS` - comma-separated labels to apply to the merge-back pull request after it is created or reused
 * (optional) `RELEASE_SCRIPT_PATH` - An optional path to a custom shell script that will be executed after the version replacement in property file defined by `PROPERTY_FILE_NAME`, but prior to commiting the project changes.
 * (optional) `RELEASE_LATEST` - An optional boolean flag to update the GitHub release to be or not to be the latest. If not defined, no update will be performed.
 * (optional) `RELEASE_PRE_RELEASE` - An optional boolean flag to update the GitHub release to be or not to be a pre-release. If not defined, no update will be performed.
@@ -58,4 +59,12 @@ Running a custom script `myScript.sh` that's checked in under `.github/scripts`:
         uses: apache/grails-github-actions/post-release@asf
         env:
           RELEASE_SCRIPT_PATH: '.github/scripts/myScript.sh'
+```
+
+Adding labels to the merge-back pull request:
+```yaml
+      - name: "⚙️ Run post-release"
+        uses: apache/grails-github-actions/post-release@asf
+        with:
+          pr-labels: skip-changelog,internal-release
 ```

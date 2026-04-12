@@ -203,6 +203,128 @@ class PostReleaseSpec extends Specification {
         action.close()
     }
 
+    def 'success - labels applied to created merge pr'() {
+        given:
+        Network net = Network.newNetwork()
+
+        and:
+        GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'v7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
+        GitHubDockerAction action = new GitHubDockerAction('post-release', release, new GitHubCliMock())
+
+        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo.init()
+        gitRepo.populateRepository('7.0.0-SNAPSHOT', 'v7.0.0-RC1', ['7.0.x'])
+        gitRepo.setProjectVersion('v7.0.0-RC1', '7.0.0-RC1')
+        gitRepo.stageRepositoryForAction('v7.0.0-RC1', true)
+
+        and:
+        def env = action.getDefaultEnvironment()
+        env['GH_MOCK_PR_CREATE'] = 'create'
+        env['PR_LABELS'] = 'skip-changelog, internal-release'
+
+        and:
+        action.createContainer(env, net)
+
+        when:
+        action.runAction()
+
+        then:
+        action.actionExitCode == 0L
+        action.getActionGroupLogs('Open/Reuse pull request').contains('https://github.com/mock-org/mock-repo/pull/42')
+        action.getActionGroupLogs('Open/Reuse pull request').contains('Applying pull request labels: skip-changelog, internal-release')
+        action.getActionGroupLogs('Open/Reuse pull request').contains('ref=https://github.com/mock-org/mock-repo/pull/42 labels=skip-changelog,internal-release')
+
+        cleanup:
+        System.out.println("Container logs:\n${action.actionLogs}" as String)
+        gitRepo?.close()
+        action.close()
+    }
+
+    def 'success - labels applied when merge pr already exists'() {
+        given:
+        Network net = Network.newNetwork()
+
+        and:
+        GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'v7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
+        GitHubDockerAction action = new GitHubDockerAction('post-release', release, new GitHubCliMock())
+
+        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo.init()
+        gitRepo.populateRepository('7.0.0-SNAPSHOT', 'v7.0.0-RC1', ['7.0.x'])
+        gitRepo.setProjectVersion('v7.0.0-RC1', '7.0.0-RC1')
+        gitRepo.stageRepositoryForAction('v7.0.0-RC1', true)
+
+        and:
+        def env = action.getDefaultEnvironment()
+        env['GH_MOCK_PR_CREATE'] = 'exists'
+        env['PR_LABELS'] = 'skip-changelog'
+
+        and:
+        action.createContainer(env, net)
+
+        when:
+        action.runAction()
+
+        then:
+        action.actionExitCode == 0L
+        action.getActionGroupLogs('Open/Reuse pull request').contains('Applying pull request labels: skip-changelog')
+        action.getActionGroupLogs('Open/Reuse pull request').contains('ref=https://github.com/mock-org/mock-repo/pull/42 labels=skip-changelog')
+
+        cleanup:
+        System.out.println("Container logs:\n${action.actionLogs}" as String)
+        gitRepo?.close()
+        action.close()
+    }
+
+    def 'failure - create pr fails and no existing pr is found'() {
+        given:
+        Network net = Network.newNetwork()
+
+        and:
+        GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'v7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
+        GitHubDockerAction action = new GitHubDockerAction('post-release', release, new GitHubCliMock())
+
+        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo.init()
+        gitRepo.populateRepository('7.0.0-SNAPSHOT', 'v7.0.0-RC1', ['7.0.x'])
+        gitRepo.setProjectVersion('v7.0.0-RC1', '7.0.0-RC1')
+        gitRepo.stageRepositoryForAction('v7.0.0-RC1', true)
+
+        and:
+        def env = action.getDefaultEnvironment()
+        env['GH_MOCK_PR_CREATE'] = 'fail'
+        env['GH_MOCK_PR_VIEW'] = 'fail'
+        env['RELEASE_LATEST'] = 'true'
+
+        and:
+        action.createContainer(env, net)
+
+        when:
+        action.runAction()
+
+        then:
+        def e = thrown(org.testcontainers.containers.ContainerLaunchException)
+        e.message.contains('Container startup failed')
+
+        and: 'logs capture the real failure mode'
+        action.actionLogs.contains('PR creation failed. Checking for an existing PR:')
+        action.actionLogs.contains('gh-mock: simulated failure creating PR')
+        action.actionLogs.contains('gh-mock: simulated failure viewing PR')
+        action.actionLogs.contains('ERROR: Merge-back branch merge-back-7.0.0-RC1 was pushed, but pull request creation failed and no existing PR could be found. Create the PR manually.')
+
+        and: 'merge branch and version bump were still produced before failing'
+        gitRepo.branchExists('merge-back-7.0.0-RC1')
+        gitRepo.getRefProjectVersion('merge-back-7.0.0-RC1') == '7.0.0-SNAPSHOT'
+
+        and: 'later workflow steps still executed before the final failure'
+        action.getActionGroupLogs('Update Release Status').contains('PATCH payload: {"make_latest": "true"}')
+
+        cleanup:
+        System.out.println("Container logs:\n${action.actionLogs}" as String)
+        gitRepo?.close()
+        action.close()
+    }
+
     def 'success - pre-release forced update'() {
         given:
         Network net = Network.newNetwork()
