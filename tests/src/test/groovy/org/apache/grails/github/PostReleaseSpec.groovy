@@ -23,19 +23,28 @@ import org.apache.grails.github.mocks.GitHubVersion
 import org.apache.grails.github.mocks.GitHubRepoMock
 import org.apache.grails.github.mocks.cli.GitHubCliMock
 import org.testcontainers.containers.Network
+import spock.lang.AutoCleanup
+import spock.lang.Shared
 import spock.lang.Specification
 
 class PostReleaseSpec extends Specification {
 
+    @Shared
+    @AutoCleanup
+    Network net = Network.newNetwork()
+
+    @AutoCleanup
+    GitHubDockerAction action
+
+    @AutoCleanup
+    GitHubRepoMock gitRepo
+
     def 'success - merge pr created - custom tag prefix'() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('post-release', release, new GitHubCliMock())
+        action = new GitHubDockerAction('post-release', release, new GitHubCliMock())
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', 'rel-7.0.0-RC1', ['7.0.x'])
         gitRepo.setProjectVersion('rel-7.0.0-RC1', '7.0.0-RC1')
@@ -82,19 +91,14 @@ class PostReleaseSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 
     def "success - different property file name"() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'v7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('post-release', release, new GitHubCliMock())
+        action = new GitHubDockerAction('post-release', release, new GitHubCliMock())
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', 'v7.0.0-RC1', ['7.0.x'], [
                 'README.md'     : '# demo\n',
@@ -141,19 +145,14 @@ class PostReleaseSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 
     def 'success - merge pr created - tag v7.0.0-RC1 to 7.0.x branch'() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'v7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('post-release', release, new GitHubCliMock())
+        action = new GitHubDockerAction('post-release', release, new GitHubCliMock())
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', 'v7.0.0-RC1', ['7.0.x'])
         gitRepo.setProjectVersion('v7.0.0-RC1', '7.0.0-RC1')
@@ -199,19 +198,121 @@ class PostReleaseSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
+    }
+
+    def 'success - labels applied to created merge pr'() {
+        given:
+        GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'v7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
+        action = new GitHubDockerAction('post-release', release, new GitHubCliMock())
+
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo.init()
+        gitRepo.populateRepository('7.0.0-SNAPSHOT', 'v7.0.0-RC1', ['7.0.x'])
+        gitRepo.setProjectVersion('v7.0.0-RC1', '7.0.0-RC1')
+        gitRepo.stageRepositoryForAction('v7.0.0-RC1', true)
+
+        and:
+        def env = action.getDefaultEnvironment()
+        env['GH_MOCK_PR_CREATE'] = 'create'
+        env['PR_LABELS'] = 'skip-changelog, internal-release'
+
+        and:
+        action.createContainer(env, net)
+
+        when:
+        action.runAction()
+
+        then:
+        action.actionExitCode == 0L
+        action.getActionGroupLogs('Open/Reuse pull request').contains('https://github.com/mock-org/mock-repo/pull/42')
+        action.getActionGroupLogs('Open/Reuse pull request').contains('Applying pull request labels: skip-changelog, internal-release')
+        action.getActionGroupLogs('Open/Reuse pull request').contains('ref=https://github.com/mock-org/mock-repo/pull/42 labels=skip-changelog,internal-release')
+
+        cleanup:
+        System.out.println("Container logs:\n${action.actionLogs}" as String)
+    }
+
+    def 'success - labels applied when merge pr already exists'() {
+        given:
+        GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'v7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
+        action = new GitHubDockerAction('post-release', release, new GitHubCliMock())
+
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo.init()
+        gitRepo.populateRepository('7.0.0-SNAPSHOT', 'v7.0.0-RC1', ['7.0.x'])
+        gitRepo.setProjectVersion('v7.0.0-RC1', '7.0.0-RC1')
+        gitRepo.stageRepositoryForAction('v7.0.0-RC1', true)
+
+        and:
+        def env = action.getDefaultEnvironment()
+        env['GH_MOCK_PR_CREATE'] = 'exists'
+        env['PR_LABELS'] = 'skip-changelog'
+
+        and:
+        action.createContainer(env, net)
+
+        when:
+        action.runAction()
+
+        then:
+        action.actionExitCode == 0L
+        action.getActionGroupLogs('Open/Reuse pull request').contains('Applying pull request labels: skip-changelog')
+        action.getActionGroupLogs('Open/Reuse pull request').contains('ref=https://github.com/mock-org/mock-repo/pull/42 labels=skip-changelog')
+
+        cleanup:
+        System.out.println("Container logs:\n${action.actionLogs}" as String)
+    }
+
+    def 'failure - create pr fails and no existing pr is found'() {
+        given:
+        GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'v7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
+        action = new GitHubDockerAction('post-release', release, new GitHubCliMock())
+
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo.init()
+        gitRepo.populateRepository('7.0.0-SNAPSHOT', 'v7.0.0-RC1', ['7.0.x'])
+        gitRepo.setProjectVersion('v7.0.0-RC1', '7.0.0-RC1')
+        gitRepo.stageRepositoryForAction('v7.0.0-RC1', true)
+
+        and:
+        def env = action.getDefaultEnvironment()
+        env['GH_MOCK_PR_CREATE'] = 'fail'
+        env['GH_MOCK_PR_VIEW'] = 'fail'
+        env['RELEASE_LATEST'] = 'true'
+
+        and:
+        action.createContainer(env, net)
+
+        when:
+        action.runAction()
+
+        then:
+        def e = thrown(org.testcontainers.containers.ContainerLaunchException)
+        e.message.contains('Container startup failed')
+
+        and: 'logs capture the real failure mode'
+        action.actionLogs.contains('PR creation failed. Checking for an existing PR:')
+        action.actionLogs.contains('gh-mock: simulated failure creating PR')
+        action.actionLogs.contains('gh-mock: simulated failure viewing PR')
+        action.actionLogs.contains('ERROR: Merge-back branch merge-back-7.0.0-RC1 was pushed, but pull request creation failed and no existing PR could be found. Create the PR manually.')
+
+        and: 'merge branch and version bump were still produced before failing'
+        gitRepo.branchExists('merge-back-7.0.0-RC1')
+        gitRepo.getRefProjectVersion('merge-back-7.0.0-RC1') == '7.0.0-SNAPSHOT'
+
+        and: 'later workflow steps still executed before the final failure'
+        action.getActionGroupLogs('Update Release Status').contains('PATCH payload: {"make_latest": "true"}')
+
+        cleanup:
+        System.out.println("Container logs:\n${action.actionLogs}" as String)
     }
 
     def 'success - pre-release forced update'() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'v7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('post-release', release, new GitHubCliMock())
+        action = new GitHubDockerAction('post-release', release, new GitHubCliMock())
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', 'v7.0.0-RC1', ['7.0.x'])
         gitRepo.setProjectVersion('v7.0.0-RC1', '7.0.0-RC1')
@@ -259,19 +360,14 @@ class PostReleaseSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 
     def 'success - latest forced update'() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'v7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('post-release', release, new GitHubCliMock())
+        action = new GitHubDockerAction('post-release', release, new GitHubCliMock())
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', 'v7.0.0-RC1', ['7.0.x'])
         gitRepo.setProjectVersion('v7.0.0-RC1', '7.0.0-RC1')
@@ -319,19 +415,14 @@ class PostReleaseSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 
     def 'success - latest and prerelease forced update'() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'v7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('post-release', release, new GitHubCliMock())
+        action = new GitHubDockerAction('post-release', release, new GitHubCliMock())
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', 'v7.0.0-RC1', ['7.0.x'])
         gitRepo.setProjectVersion('v7.0.0-RC1', '7.0.0-RC1')
@@ -380,19 +471,14 @@ class PostReleaseSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 
     def 'success - merge pr created - tag v7.0.0-RC1 to main branch'() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'v7.0.0-RC1', targetBranch: 'main', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('post-release', release, new GitHubCliMock())
+        action = new GitHubDockerAction('post-release', release, new GitHubCliMock())
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', 'v7.0.0-RC1', [])
         gitRepo.setProjectVersion('v7.0.0-RC1', '7.0.0-RC1')
@@ -438,7 +524,5 @@ class PostReleaseSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 }

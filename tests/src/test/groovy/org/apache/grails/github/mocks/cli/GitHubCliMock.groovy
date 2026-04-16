@@ -56,7 +56,7 @@ case "\$cmd" in
 
         case "\$mode" in
           create)
-            printf "%s\n"
+            printf "%s\n" "https://github.com/mock-org/mock-repo/pull/42"
             exit 0
             ;;
           exists)
@@ -75,7 +75,37 @@ case "\$cmd" in
         ;;
       view)
         # Accept: gh pr view <branch> --web
-        # Simulate success
+        mode="\${GH_MOCK_PR_VIEW:-success}"
+        if [ "\$mode" = "fail" ]; then
+          echo "gh-mock: simulated failure viewing PR" >&2
+          exit 1
+        fi
+        printf "%s\n" "https://github.com/mock-org/mock-repo/pull/42"
+        exit 0
+        ;;
+      edit)
+        ref="\${1:-}"; shift || true
+        labels=""
+        while [ "\$#" -gt 0 ]; do
+          case "\$1" in
+            --add-label)
+              if [ -n "\$labels" ]; then
+                labels="\$labels,\$2"
+              else
+                labels="\$2"
+              fi
+              shift 2
+              ;;
+            *)
+              shift
+              ;;
+          esac
+        done
+        if [ "\${GH_MOCK_PR_EDIT:-success}" = "invalid-label" ]; then
+          echo "could not add label: label not found" >&2
+          exit 1
+        fi
+        printf 'ref=%s labels=%s\n' "\$ref" "\$labels"
         exit 0
         ;;
       *)

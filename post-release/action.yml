@@ -20,9 +20,14 @@ inputs:
     description: 'GitHub token to authenticate the requests'  
     required: true
     default: ${{ github.token }}
+  pr-labels:
+    description: 'Optional comma-separated list of labels to add to the merge-back pull request'
+    required: false
+    default: ''
 runs:
   using: 'docker'
   image: 'Dockerfile'
   env:
     GITHUB_API_URL: 'https://api.github.com'
     GITHUB_TOKEN: ${{ inputs.token }}
+    PR_LABELS: ${{ inputs.pr-labels }}

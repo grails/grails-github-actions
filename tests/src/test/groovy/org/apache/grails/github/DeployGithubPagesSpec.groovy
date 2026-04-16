@@ -23,9 +23,21 @@ import org.apache.grails.github.mocks.GitHubVersion
 import org.apache.grails.github.mocks.GitHubRepoMock
 import org.apache.grails.github.mocks.cli.GitHubCliMock
 import org.testcontainers.containers.Network
+import spock.lang.AutoCleanup
+import spock.lang.Shared
 import spock.lang.Specification
 
 class DeployGithubPagesSpec extends Specification {
+
+    @Shared
+    @AutoCleanup
+    Network net = Network.newNetwork()
+
+    @AutoCleanup
+    GitHubDockerAction action
+
+    @AutoCleanup
+    GitHubRepoMock gitRepo
 
     private Map<String, String> getProjectFiles() {
         [
@@ -48,13 +60,10 @@ class DeployGithubPagesSpec extends Specification {
 
     def "gh-pages branch is created if does not exist"() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
+        action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], getProjectFiles())
         gitRepo.stageRepositoryForAction('main', false)
@@ -94,19 +103,14 @@ class DeployGithubPagesSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 
     def "ghpages_html is set as root index_html"() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
+        action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], getProjectFiles())
         gitRepo.createDivergedBranch([
@@ -153,19 +157,14 @@ class DeployGithubPagesSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 
     def "snapshot - snapshot publishing disabled"() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
+        action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], getProjectFiles())
         gitRepo.stageRepositoryForAction('main', false)
@@ -201,19 +200,14 @@ class DeployGithubPagesSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 
     def "snapshot - published with subfolder"() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
+        action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], getProjectFiles())
         gitRepo.stageRepositoryForAction('main', false)
@@ -255,19 +249,14 @@ class DeployGithubPagesSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 
     def "snapshot - published without subfolder"() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
+        action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], getProjectFiles())
         gitRepo.stageRepositoryForAction('main', false)
@@ -308,19 +297,14 @@ class DeployGithubPagesSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 
     def "snapshot - published to different base path without subfolder"() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
+        action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], getProjectFiles())
         gitRepo.stageRepositoryForAction('main', false)
@@ -364,19 +348,14 @@ class DeployGithubPagesSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 
     def "snapshot - version is ignored on snapshot"() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
+        action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], getProjectFiles())
         gitRepo.stageRepositoryForAction('main', false)
@@ -417,19 +396,14 @@ class DeployGithubPagesSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 
     def "release - published without subfolder"() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
+        action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], getProjectFiles())
         gitRepo.stageRepositoryForAction('main', false)
@@ -479,19 +453,14 @@ class DeployGithubPagesSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 
     def "release - published to different base path without subfolder"() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
+        action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], getProjectFiles())
         gitRepo.stageRepositoryForAction('main', false)
@@ -545,19 +514,14 @@ class DeployGithubPagesSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 
     def "release - published with subfolder"() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
+        action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], getProjectFiles())
         gitRepo.stageRepositoryForAction('main', false)
@@ -608,19 +572,14 @@ class DeployGithubPagesSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 
     def "release - skip publishing to latest"() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
+        action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], getProjectFiles())
         gitRepo.stageRepositoryForAction('main', false)
@@ -670,19 +629,14 @@ class DeployGithubPagesSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 
     def "push retry - logs show successful deployment on first attempt"() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
+        action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], getProjectFiles())
         gitRepo.stageRepositoryForAction('main', false)
@@ -714,19 +668,14 @@ class DeployGithubPagesSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 
     def "push retry - succeeds after initial push rejection"() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
+        action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], getProjectFiles())
         gitRepo.createDivergedBranch([
@@ -782,19 +731,14 @@ exec "$REAL_GIT" "$@"
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 
     def "push retry - fails after maximum push attempts"() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
+        action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], getProjectFiles())
         gitRepo.createDivergedBranch([
@@ -851,7 +795,5 @@ exec "$REAL_GIT" "$@"
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 }

@@ -78,6 +78,9 @@ set_value_or_error "${RELEASE_VERSION}" "${GITHUB_REF#refs/*/}" "RELEASE_VERSION
 set_value_or_error "${RELEASE_TAG_PREFIX}" "v" "RELEASE_TAG_PREFIX"
 set_value_or_error "${PROPERTY_FILE_NAME}" "gradle.properties" "PROPERTY_FILE_NAME"
 
+label_failure_message=""
+pr_failure_message=""
+
 echo "::group::Determine release version"
 if [[ ! "${RELEASE_VERSION}" =~ ^(${RELEASE_TAG_PREFIX})?[^.]+\.[^.]+\.[^.]+$ ]]; then
   echo "ERROR: RELEASE_VERSION must be in the format 'X.X.X' or '${RELEASE_TAG_PREFIX}X.X.X'. Got: '${RELEASE_VERSION}'"
@@ -164,17 +167,45 @@ echo "::endgroup::"
 echo "::group::Open/Reuse pull request"
 PR_TITLE="chore: merge ${RELEASE_VERSION}->${TARGET_BRANCH}; bump to ${NEXT_VERSION}-SNAPSHOT"
 PR_BODY="Automated snapshot bump after completing release ${RELEASE_VERSION}"
+PR_REFERENCE="${MERGE_BRANCH_NAME}"
 if ! gh pr create \
         --title "${PR_TITLE}" \
         --body  "${PR_BODY}" \
         --base  "${TARGET_BRANCH}" \
         --head  "${MERGE_BRANCH_NAME}" \
         --fill  >/tmp/pr-url 2>/tmp/pr-err; then
-    echo "PR likely exists – existing PR:" >&2
+    echo "PR creation failed. Checking for an existing PR:" >&2
     cat /tmp/pr-err
-    gh pr view "${MERGE_BRANCH_NAME}" --web || true
+    if PR_REFERENCE="$(gh pr view "${MERGE_BRANCH_NAME}" --web 2>/tmp/pr-view-err)"; then
+        echo "${PR_REFERENCE}"
+    else
+        cat /tmp/pr-view-err >&2
+        pr_failure_message="ERROR: Merge-back branch ${MERGE_BRANCH_NAME} was pushed, but pull request creation failed and no existing PR could be found. Create the PR manually."
+        echo "${pr_failure_message}" >&2
+        PR_REFERENCE=""
+    fi
 else
-    cat /tmp/pr-url
+    PR_REFERENCE="$(cat /tmp/pr-url)"
+    echo "${PR_REFERENCE}"
+fi
+
+if [[ -n "${PR_REFERENCE}" && -n "${PR_LABELS}" ]]; then
+    IFS=',' read -r -a pr_labels <<< "${PR_LABELS}"
+    label_args=()
+    for pr_label in "${pr_labels[@]}"; do
+        trimmed_label="$(printf '%s' "${pr_label}" | xargs)"
+        if [[ -n "${trimmed_label}" ]]; then
+            label_args+=(--add-label "${trimmed_label}")
+        fi
+    done
+
+    if [[ ${#label_args[@]} -gt 0 ]]; then
+        echo "Applying pull request labels: ${PR_LABELS}"
+        if ! gh pr edit "${PR_REFERENCE}" "${label_args[@]}"; then
+            label_failure_message="WARNING: Pull request ${PR_REFERENCE} was created or reused, but one or more labels could not be applied. Verify that all requested labels exist: ${PR_LABELS}"
+            echo "${label_failure_message}" >&2
+        fi
+    fi
 fi
 echo "::endgroup::"
 
@@ -210,3 +241,13 @@ else
     --data "${json_payload}"
 fi
 echo "::endgroup::"
+
+if [[ -n "${pr_failure_message}" ]]; then
+  echo "${pr_failure_message}" >&2
+  exit 1
+fi
+
+if [[ -n "${label_failure_message}" ]]; then
+  echo "${label_failure_message}" >&2
+  exit 1
+fi

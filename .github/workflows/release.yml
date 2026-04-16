@@ -12,7 +12,11 @@ env:
   REPO_SLUG: ${{ github.repository }}
   SVN_FOLDER: actions
   TAG: ${{ github.event.release.tag_name }}
+  TARGET_BRANCH: ${{ github.event.release.target_commitish }}
   VERSION: will be computed in each job
+concurrency:
+  group: release-pipeline-${{ github.event.release.target_commitish }}
+  cancel-in-progress: false
 jobs:
   test:
     name: 'Tests'
