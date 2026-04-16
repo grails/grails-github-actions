@@ -22,19 +22,28 @@ import org.apache.grails.github.mocks.GitHubDockerAction
 import org.apache.grails.github.mocks.GitHubVersion
 import org.apache.grails.github.mocks.GitHubRepoMock
 import org.testcontainers.containers.Network
+import spock.lang.AutoCleanup
+import spock.lang.Shared
 import spock.lang.Specification
 
 class PreReleaseSpec extends Specification {
 
+    @Shared
+    @AutoCleanup
+    Network net = Network.newNetwork()
+
+    @AutoCleanup
+    GitHubDockerAction action
+
+    @AutoCleanup
+    GitHubRepoMock gitRepo
+
     def 'success - tag v7.0.0-RC1 updated with version'() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'v7.0.0-RC1', targetBranch: 'main', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('pre-release', release)
+        action = new GitHubDockerAction('pre-release', release)
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', 'v7.0.0-RC1', [])
         gitRepo.stageRepositoryForAction('v7.0.0-RC1', true)
@@ -70,20 +79,14 @@ class PreReleaseSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
-        net?.close()
     }
 
     def 'success - different property file name'() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'v7.0.0-RC1', targetBranch: 'main', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('pre-release', release)
+        action = new GitHubDockerAction('pre-release', release)
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', 'v7.0.0-RC1', [], [
                 'README.md'     : '# demo\n',
@@ -123,20 +126,14 @@ class PreReleaseSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
-        net?.close()
     }
 
     def 'success - tag with custom prefix updated with version'() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: 'main', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('pre-release', release)
+        action = new GitHubDockerAction('pre-release', release)
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', 'rel-7.0.0-RC1', [])
         gitRepo.stageRepositoryForAction('rel-7.0.0-RC1', true)
@@ -173,8 +170,5 @@ class PreReleaseSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
-        net?.close()
     }
 }
