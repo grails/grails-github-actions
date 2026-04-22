@@ -23,19 +23,28 @@ import org.apache.grails.github.mocks.GitHubRepoMock
 import org.apache.grails.github.mocks.GitHubVersion
 import org.testcontainers.containers.Network
 import org.testcontainers.containers.ContainerLaunchException
+import spock.lang.AutoCleanup
+import spock.lang.Shared
 import spock.lang.Specification
 
 class CascadeMergeSpec extends Specification {
 
+    @Shared
+    @AutoCleanup
+    Network net = Network.newNetwork()
+
+    @AutoCleanup
+    GitHubDockerAction action
+
+    @AutoCleanup
+    GitHubRepoMock gitRepo
+
     def 'success - merges source branch into next downstream branch'() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0', tagName: null, targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('cascade-merge', release)
+        action = new GitHubDockerAction('cascade-merge', release)
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', null, ['7.0.x', '7.1.x', '8.0.x'])
         gitRepo.storeFiles(['README.md': '# merged from 7.0.x\n'], '7.0.x')
@@ -61,19 +70,14 @@ class CascadeMergeSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 
     def 'failure - errors when the next downstream merge conflicts'() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0', tagName: null, targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('cascade-merge', release)
+        action = new GitHubDockerAction('cascade-merge', release)
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', null, ['7.0.x', '7.1.x', '8.0.x'])
         gitRepo.storeFiles(['README.md': '# source branch change\n'], '7.0.x')
@@ -103,19 +107,14 @@ class CascadeMergeSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 
     def 'success - does nothing when source branch is not in branch order'() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0', tagName: null, targetBranch: 'feature/test', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('cascade-merge', release)
+        action = new GitHubDockerAction('cascade-merge', release)
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', null, ['7.0.x', '7.1.x', '8.0.x', 'feature/test'])
         gitRepo.storeFiles(['README.md': '# feature branch\n'], 'feature/test')
@@ -142,19 +141,14 @@ class CascadeMergeSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 
     def 'failure - requires manual merge when source commits include skip merge marker'() {
         given:
-        Network net = Network.newNetwork()
-
-        and:
         GitHubVersion release = new GitHubVersion(version: '7.0.0', tagName: null, targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
-        GitHubDockerAction action = new GitHubDockerAction('cascade-merge', release)
+        action = new GitHubDockerAction('cascade-merge', release)
 
-        GitHubRepoMock gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
         gitRepo.init()
         gitRepo.populateRepository('7.0.0-SNAPSHOT', null, ['7.0.x', '7.1.x', '8.0.x'])
         gitRepo.storeFiles(['README.md': '# skip merge change\n'], '7.0.x', 'docs: hold forward merge [skip merge]')
@@ -184,7 +178,5 @@ class CascadeMergeSpec extends Specification {
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
-        gitRepo?.close()
-        action.close()
     }
 }
