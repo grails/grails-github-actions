@@ -13,15 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: 'deploy-github-pages'
-description: 'Publishes documentation to the gh-pages branch'
+name: 'cascade-merge'
+description: 'Automatically merges a branch forward through an explicit ordered branch list'
 inputs:
-  token:
-    description: 'GitHub token to authenticate the requests'
+  branch-order:
+    description: 'Required comma-separated or newline-separated ordered list of branches to merge through'
     required: true
-    default: ${{ github.token }}
+  source-branch:
+    description: 'Optional source branch to start from. Defaults to the current branch ref'
+    required: false
+    default: ''
 runs:
   using: 'docker'
   image: 'Dockerfile'
   env:
-    GITHUB_TOKEN: ${{ inputs.token }}
+    BRANCH_ORDER: ${{ inputs.branch-order }}
+    SOURCE_BRANCH: ${{ inputs.source-branch }}

@@ -13,8 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: 'Grails pre-release action'
-description: 'Performs some actions before doing a release'
+name: 'pre-release'
+description: 'Performs repository updates before a release'
 inputs:
   token:
     description: 'GitHub token to authenticate the requests'
