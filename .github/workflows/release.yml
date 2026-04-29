@@ -63,6 +63,7 @@ jobs:
           path: ${{ env.REPO_NAME }}
           token: ${{ secrets.GITHUB_TOKEN }} # This should not be needed as ${{ github.token }} is the default, but there have been issues with it.
       - name: "📅 Store common build date" # to ensure a reproducible build
+        working-directory: ${{ env.REPO_NAME }}
         run: echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
       - name: "Generate Build Date file"
         working-directory: ${{ env.REPO_NAME }}
