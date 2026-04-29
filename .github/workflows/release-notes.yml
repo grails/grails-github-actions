@@ -18,8 +18,10 @@ on:
   issues:
     types: [ closed,reopened ]
   push:
+    branches:
+      - '[0-9]+.[0-9]+.x'
   pull_request:
-    types: [ opened, reopened, synchronize ]
+    types: [ opened, reopened, synchronize, labeled ]
   workflow_dispatch:
 # queue jobs and only allow 1 run per branch due to the likelihood of hitting GitHub resource limits
 concurrency:
@@ -43,6 +45,7 @@ jobs:
           fi
       - name: "📝 Update Release Draft"
         uses: release-drafter/release-drafter@5de93583980a40bd78603b6dfdcda5b4df377b32 # v7.2.0
+        continue-on-error: true
         with:
           commitish: ${{ github.event.pull_request.base.ref || github.ref_name }}
           filter-by-range: ${{ steps.version.outputs.range }}
