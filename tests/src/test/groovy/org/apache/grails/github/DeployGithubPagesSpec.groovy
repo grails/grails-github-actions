@@ -720,7 +720,7 @@ exec "$REAL_GIT" "$@"
 
         and: 'first push was rejected and retry occurred'
         action.actionLogs.contains('Push attempt 1/5')
-        action.actionLogs.contains('Push rejected, pulling remote changes and retrying...')
+        action.actionLogs.contains('Push rejected, rebasing onto remote changes and retrying...')
         action.actionLogs.contains('Push attempt 2/5')
         action.actionLogs.contains('Deployment successful!')
 
@@ -728,6 +728,89 @@ exec "$REAL_GIT" "$@"
         gitRepo.branchExists('gh-pages')
         gitRepo.getFileContents('snapshot/index.html', 'gh-pages') == '<html><body>Welcome to the Grails Documentation</body></html>'
         gitRepo.getFileContents('index.html', 'gh-pages') == '<html><body>Welcome to the Grails GitHub Pages</body></html>'
+
+        cleanup:
+        System.out.println("Container logs:\n${action.actionLogs}" as String)
+    }
+
+    def "push retry - resolves modify/delete conflict from a concurrent deploy"() {
+        given:
+        GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
+        action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
+
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo.init()
+        gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], getProjectFiles())
+        gitRepo.createDivergedBranch([
+                'index.html'          : '<html><body>Existing root page</body></html>',
+                'snapshot/index.html' : '<html><body>Existing snapshot</body></html>',
+                'snapshot/legacy.html': '<html><body>Legacy snapshot page</body></html>'
+        ], 'gh-pages')
+        gitRepo.stageRepositoryForAction('main', false)
+
+        and: 'a git wrapper that, on the first push, lands a concurrent deploy MODIFYING a file this deploy PURGES (a modify/delete conflict), then rejects our push'
+        def gitWrapper = action.mockPath.resolve('git').toFile()
+        gitWrapper.text = '''\
+#!/bin/sh
+REAL_GIT=/usr/bin/git
+MARKER=/tmp/git_push_rejected_once
+if [ "$1" = "push" ]; then
+  if [ ! -f "$MARKER" ]; then
+    touch "$MARKER"
+    REMOTE="$2"
+    BRANCH="$3"
+    TMP=$(mktemp -d)
+    if "$REAL_GIT" clone --branch "$BRANCH" --single-branch "$REMOTE" "$TMP/r" >/dev/null 2>&1; then
+      echo '<html><body>Concurrently modified legacy page</body></html>' > "$TMP/r/snapshot/legacy.html"
+      cd "$TMP/r"
+      "$REAL_GIT" config user.email concurrent@example.com
+      "$REAL_GIT" config user.name concurrent
+      "$REAL_GIT" add -A >/dev/null 2>&1
+      "$REAL_GIT" commit -m "concurrent deploy" >/dev/null 2>&1
+      "$REAL_GIT" push "$REMOTE" "$BRANCH" >/dev/null 2>&1
+      cd /
+    fi
+    rm -rf "$TMP"
+    echo "error: failed to push some refs" >&2
+    echo "hint: Updates were rejected because the remote contains work that you do not have locally." >&2
+    exit 1
+  fi
+fi
+exec "$REAL_GIT" "$@"
+'''
+        gitWrapper.executable = true
+
+        and:
+        def env = getDefaultEnvironment(action, gitRepo)
+        env['GRADLE_PUBLISH_RELEASE'] = 'false'
+        env['SOURCE_FOLDER'] = 'docs'
+        env['VERSION'] = '7.0.0-SNAPSHOT'
+
+        and:
+        action.createContainer(env, net)
+
+        when:
+        action.runAction()
+
+        then: 'the action recovers and deploys successfully despite the modify/delete conflict'
+        action.actionExitCode == 0L
+
+        and: 'the retry rebased onto the concurrent deploy'
+        action.actionLogs.contains('Push attempt 1/5')
+        action.actionLogs.contains('Push rejected, rebasing onto remote changes and retrying...')
+        action.actionLogs.contains('Push attempt 2/5')
+        action.actionLogs.contains('Deployment successful!')
+
+        and: 'this deploy owns the snapshot folder wholesale - its new content is present'
+        gitRepo.branchExists('gh-pages')
+        gitRepo.getFileContents('snapshot/index.html', 'gh-pages') == '<html><body>Welcome to the Grails Documentation</body></html>'
+        gitRepo.getFileContents('index.html', 'gh-pages') == '<html><body>Welcome to the Grails GitHub Pages</body></html>'
+
+        when: 'the purged legacy file is looked up'
+        gitRepo.getFileContents('snapshot/legacy.html', 'gh-pages')
+
+        then: 'it was removed despite the concurrent modification (clean last-writer-wins, no modify/delete stall)'
+        thrown(IllegalStateException)
 
         cleanup:
         System.out.println("Container logs:\n${action.actionLogs}" as String)
