@@ -187,8 +187,19 @@ reconcile_owned_paths() {
       # remote's higher version. FETCH_HEAD is the remote tip fetched by the
       # preceding `git pull --rebase`, i.e. the concurrent deploy we rebased onto.
       git rm -rf --ignore-unmatch --quiet -- "${LATEST_OWNED_PATH}" >/dev/null 2>&1 || true
-      git checkout FETCH_HEAD -- "${LATEST_OWNED_PATH}" >/dev/null 2>&1 || true
-      git add -A -- "${LATEST_OWNED_PATH}" >/dev/null 2>&1 || true
+      # Restore the remote's (higher) version IF the remote actually publishes this
+      # path. If it does not (e.g. the higher release skipped "latest"), the
+      # `git rm` above already staged its removal - there is nothing to restore, and
+      # a `git add -A` on the now-absent pathspec would exit 128 and abort. A
+      # genuinely broken FETCH_HEAD makes `git ls-tree` exit nonzero, which - left
+      # unmasked - fails the job under `set -e` rather than being mistaken for
+      # "path absent". A checkout failure on a path the remote DOES have also aborts.
+      local remote_latest
+      remote_latest="$(git ls-tree -r FETCH_HEAD -- "${LATEST_OWNED_PATH}")"
+      if [ -n "${remote_latest}" ]; then
+        git checkout FETCH_HEAD -- "${LATEST_OWNED_PATH}"
+        git add -A -- "${LATEST_OWNED_PATH}"
+      fi
       local kept=() x
       for x in "${OWNED_PURGE_PATHS[@]}"; do
         [ "$x" = "${LATEST_OWNED_PATH}" ] || kept+=("$x")
@@ -198,15 +209,20 @@ reconcile_owned_paths() {
     fi
   fi
 
+  # These owned paths are always present in DEPLOY_COMMIT (this deploy published
+  # them), so a restore failure means a genuinely broken repo state. Do NOT mask
+  # checkout/add failures with `|| true`: under `set -e` they must fail the job
+  # rather than silently commit a deletion and publish broken/missing docs. Only
+  # the best-effort pre-clean `git rm` (guarded by --ignore-unmatch) stays lenient.
   for p in "${OWNED_PURGE_PATHS[@]}"; do
     git rm -rf --ignore-unmatch --quiet -- "$p" >/dev/null 2>&1 || true
-    git checkout "$DEPLOY_COMMIT" -- "$p" >/dev/null 2>&1 || true
-    git add -A -- "$p" >/dev/null 2>&1 || true
+    git checkout "$DEPLOY_COMMIT" -- "$p"
+    git add -A -- "$p"
     changed=true
   done
   for p in "${OWNED_KEEP_PATHS[@]}"; do
-    git checkout "$DEPLOY_COMMIT" -- "$p" >/dev/null 2>&1 || true
-    git add -A -- "$p" >/dev/null 2>&1 || true
+    git checkout "$DEPLOY_COMMIT" -- "$p"
+    git add -A -- "$p"
     changed=true
   done
   if [ "$changed" = true ]; then
