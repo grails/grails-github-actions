@@ -259,7 +259,7 @@ jobs:
       - name: "🚀 MANUAL - Release distribution artifacts"
         run: |
           echo "::group::Manual ASF Artifact Promotion"
-          echo "Run .github/scripts/releaseDistributions.sh ${TAG} ${SVN_FOLDER} <ASF_USER>"
+          echo "Run .github/scripts/releaseDistributions.sh ${TAG} <ASF_USER>"
           echo "::endgroup::"
       - name: "✅ MANUAL - Update ASF Reporter"
         run: |
