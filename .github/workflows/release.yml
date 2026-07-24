@@ -259,7 +259,7 @@ jobs:
       - name: "🚀 MANUAL - Release distribution artifacts"
         run: |
           echo "::group::Manual ASF Artifact Promotion"
-          echo "Run .github/scripts/releaseDistributions.sh ${TAG} <ASF_USER>"
+          echo "Run .github/scripts/releaseDistributions.sh ${TAG} ${SVN_FOLDER} <ASF_USER>"
           echo "::endgroup::"
       - name: "✅ MANUAL - Update ASF Reporter"
         run: |
@@ -292,4 +292,10 @@ jobs:
           echo "*************************************************"
           cat .github/vote_templates/announce.txt | envsubst
           echo "*************************************************"
+          echo "::endgroup::"
+      - name: "🌎 MANUAL - Update Version on Grails Website"
+        run: |
+          echo "::group::Update Version on Grails Website"
+          echo "Update the released version [${VERSION}] on the Grails Website"
+          echo "https://github.com/apache/grails-static-website/actions/workflows/release-companion.yml"
           echo "::endgroup::"
