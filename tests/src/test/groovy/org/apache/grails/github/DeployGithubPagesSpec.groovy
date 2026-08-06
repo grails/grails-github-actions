@@ -670,7 +670,7 @@ class DeployGithubPagesSpec extends Specification {
         System.out.println("Container logs:\n${action.actionLogs}" as String)
     }
 
-    def "push retry - succeeds after initial push rejection"() {
+    def "push retry - rebases and preserves a competing disjoint commit"() {
         given:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
         action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
@@ -684,24 +684,41 @@ class DeployGithubPagesSpec extends Specification {
         ], 'gh-pages')
         gitRepo.stageRepositoryForAction('main', false)
 
-        and: 'install git wrapper that rejects the first push attempt'
+        and: 'install a wrapper that publishes a competing commit immediately before the first push'
         def gitWrapper = action.mockPath.resolve('git').toFile()
         gitWrapper.text = '''\
 #!/bin/sh
 REAL_GIT=/usr/bin/git
-MARKER=/tmp/git_push_rejected_once
+MARKER=/tmp/git_push_competing_commit
 if [ "$1" = "push" ]; then
   if [ ! -f "$MARKER" ]; then
     touch "$MARKER"
-    echo "error: failed to push some refs" >&2
-    echo "hint: Updates were rejected because the remote contains work that you do not" >&2
-    echo "hint: have locally. Integrate the remote changes before pushing again." >&2
-    exit 1
+    ACTION_CHECKOUT="$(pwd)"
+    rm -rf /tmp/concurrent-publisher
+    for arg in "$@"; do
+      case "$arg" in
+        http://*|https://*) REMOTE="$arg" ;;
+      esac
+    done
+    "$REAL_GIT" clone "$REMOTE" /tmp/concurrent-publisher
+    cd /tmp/concurrent-publisher
+    "$REAL_GIT" checkout gh-pages
+    mkdir -p publisher
+    printf '%s\\n' 'winner' > publisher/winner.html
+    "$REAL_GIT" add publisher/winner.html
+    "$REAL_GIT" -c user.name=winner -c user.email=winner@example.com commit -m winner
+    "$REAL_GIT" push origin HEAD:refs/heads/gh-pages
+    cd "$ACTION_CHECKOUT"
   fi
 fi
 exec "$REAL_GIT" "$@"
 '''
         gitWrapper.executable = true
+
+        action.mockPath.resolve('sleep').toFile().with {
+            text = '#!/bin/sh\nexit 0\n'
+            executable = true
+        }
 
         and:
         def env = getDefaultEnvironment(action, gitRepo)
@@ -718,14 +735,15 @@ exec "$REAL_GIT" "$@"
         then:
         action.actionExitCode == 0L
 
-        and: 'first push was rejected and retry occurred'
+        and: 'the actual non-fast-forward rejection was rebased and retried'
         action.actionLogs.contains('Push attempt 1/5')
-        action.actionLogs.contains('Push rejected, pulling remote changes and retrying...')
+        action.actionLogs.contains('Push rejected by a concurrent publisher, rebasing and retrying...')
         action.actionLogs.contains('Push attempt 2/5')
         action.actionLogs.contains('Deployment successful!')
 
-        and: 'docs deployed successfully despite initial rejection'
+        and: 'both publishers changes survive'
         gitRepo.branchExists('gh-pages')
+        gitRepo.getFileContents('publisher/winner.html', 'gh-pages').trim() == 'winner'
         gitRepo.getFileContents('snapshot/index.html', 'gh-pages') == '<html><body>Welcome to the Grails Documentation</body></html>'
         gitRepo.getFileContents('index.html', 'gh-pages') == '<html><body>Welcome to the Grails GitHub Pages</body></html>'
 
@@ -733,7 +751,7 @@ exec "$REAL_GIT" "$@"
         System.out.println("Container logs:\n${action.actionLogs}" as String)
     }
 
-    def "push retry - fails after maximum push attempts"() {
+    def "push retry - aborts a conflicting rebase and preserves the winner"() {
         given:
         GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
         action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
@@ -747,16 +765,99 @@ exec "$REAL_GIT" "$@"
         ], 'gh-pages')
         gitRepo.stageRepositoryForAction('main', false)
 
-        and: 'install git wrapper that always rejects pushes'
+        and: 'install a wrapper that changes the same destination file immediately before the first push'
         def gitWrapper = action.mockPath.resolve('git').toFile()
         gitWrapper.text = '''\
 #!/bin/sh
 REAL_GIT=/usr/bin/git
-if [ "$1" = "push" ]; then
-  echo "error: failed to push some refs" >&2
-  exit 1
+MARKER=/tmp/git_push_conflicting_commit
+if [ "$1" = "push" ] && [ ! -f "$MARKER" ]; then
+  touch "$MARKER"
+  ACTION_CHECKOUT="$(pwd)"
+  rm -rf /tmp/concurrent-publisher
+  for arg in "$@"; do
+    case "$arg" in
+      http://*|https://*) REMOTE="$arg" ;;
+    esac
+  done
+  "$REAL_GIT" clone "$REMOTE" /tmp/concurrent-publisher
+  cd /tmp/concurrent-publisher
+  "$REAL_GIT" checkout gh-pages
+  printf '%s\\n' 'winner' > snapshot/index.html
+  "$REAL_GIT" add snapshot/index.html
+  "$REAL_GIT" -c user.name=winner -c user.email=winner@example.com commit -m winner
+  "$REAL_GIT" push origin HEAD:refs/heads/gh-pages
+  cd "$ACTION_CHECKOUT"
 fi
 exec "$REAL_GIT" "$@"
+'''
+        gitWrapper.executable = true
+
+        action.mockPath.resolve('sleep').toFile().with {
+            text = '#!/bin/sh\nexit 0\n'
+            executable = true
+        }
+
+        and:
+        def env = getDefaultEnvironment(action, gitRepo)
+        env['GRADLE_PUBLISH_RELEASE'] = 'false'
+        env['SOURCE_FOLDER'] = 'docs'
+        env['VERSION'] = '7.0.0-SNAPSHOT'
+
+        and:
+        action.createContainer(env, net)
+
+        when:
+        Exception startupException = null
+        try {
+            action.runAction()
+        } catch (Exception e) {
+            startupException = e
+        }
+
+        then: 'action fails without resolving the conflict'
+        startupException != null || action.actionExitCode != 0L
+
+        and: 'the failed rebase was aborted and no second push was attempted'
+        action.actionLogs.contains('Push attempt 1/5')
+        !action.actionLogs.contains('Push attempt 2/5')
+        action.actionLogs.contains('ERROR: Rebase failed; aborting without changing the remote branch.')
+        !action.workspacePath.resolve('gh-pages/.git/rebase-merge').toFile().exists()
+        !action.workspacePath.resolve('gh-pages/.git/rebase-apply').toFile().exists()
+
+        and: 'the winner remains on the remote'
+        gitRepo.getFileContents('snapshot/index.html', 'gh-pages').trim() == 'winner'
+
+        cleanup:
+        System.out.println("Container logs:\n${action.actionLogs}" as String)
+    }
+
+    def "push retry - fails a non-contention push error without fetching or retrying"() {
+        given:
+        GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
+        action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
+
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo.init()
+        gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], getProjectFiles())
+        gitRepo.createDivergedBranch([
+                'index.html'         : '<html><body>Existing root page</body></html>',
+                'snapshot/index.html': '<html><body>Existing snapshot</body></html>'
+        ], 'gh-pages')
+        gitRepo.stageRepositoryForAction('main', false)
+
+        and: 'install a wrapper that returns a generic push failure and exposes any fetch'
+        def gitWrapper = action.mockPath.resolve('git').toFile()
+        gitWrapper.text = '''\
+#!/bin/sh
+if [ "$1" = "push" ]; then
+  echo 'fatal: authentication failed' >&2
+  exit 1
+fi
+if [ "$1" = "fetch" ]; then
+  echo 'WRAPPER_FETCH_CALLED' >&2
+fi
+exec /usr/bin/git "$@"
 '''
         gitWrapper.executable = true
 
@@ -777,20 +878,99 @@ exec "$REAL_GIT" "$@"
             startupException = e
         }
 
-        then: 'action failed'
+        then: 'the generic failure is not treated as a retryable race'
         startupException != null || action.actionExitCode != 0L
+        action.actionLogs.contains('Push attempt 1/5')
+        !action.actionLogs.contains('Push attempt 2/5')
+        !action.actionLogs.contains('WRAPPER_FETCH_CALLED')
+        action.actionLogs.contains('ERROR: Push failed without a retryable non-fast-forward rejection.')
 
-        and: 'all 5 push attempts were made'
+        and:
+        !action.actionLogs.contains('Deployment successful!')
+
+        cleanup:
+        System.out.println("Container logs:\n${action.actionLogs}" as String)
+    }
+
+    def "push retry - fails after five competing remote advances"() {
+        given:
+        GitHubVersion release = new GitHubVersion(version: '7.0.0-RC1', tagName: 'rel-7.0.0-RC1', targetBranch: '7.0.x', targetVersion: '7.0.0-SNAPSHOT')
+        action = new GitHubDockerAction('deploy-github-pages', release, new GitHubCliMock())
+
+        gitRepo = new GitHubRepoMock(action.workspacePath, net)
+        gitRepo.init()
+        gitRepo.populateRepository('7.0.0-SNAPSHOT', null, [], getProjectFiles())
+        gitRepo.createDivergedBranch([
+                'index.html'         : '<html><body>Existing root page</body></html>',
+                'snapshot/index.html': '<html><body>Existing snapshot</body></html>'
+        ], 'gh-pages')
+        gitRepo.stageRepositoryForAction('main', false)
+
+        and: 'install a wrapper that advances the remote before every action push'
+        def gitWrapper = action.mockPath.resolve('git').toFile()
+        gitWrapper.text = '''\
+#!/bin/sh
+REAL_GIT=/usr/bin/git
+COUNT_FILE=/tmp/git_push_advance_count
+if [ "$1" = "push" ]; then
+  ACTION_CHECKOUT="$(pwd)"
+  COUNT=0
+  if [ -f "$COUNT_FILE" ]; then
+    COUNT="$(cat "$COUNT_FILE")"
+  fi
+  COUNT=$((COUNT + 1))
+  printf '%s\\n' "$COUNT" > "$COUNT_FILE"
+  rm -rf /tmp/concurrent-publisher
+  for arg in "$@"; do
+    case "$arg" in
+      http://*|https://*) REMOTE="$arg" ;;
+    esac
+  done
+  "$REAL_GIT" clone "$REMOTE" /tmp/concurrent-publisher
+  cd /tmp/concurrent-publisher
+  "$REAL_GIT" checkout gh-pages
+  mkdir -p publisher
+  printf '%s\\n' "$COUNT" > "publisher/winner-${COUNT}.html"
+  "$REAL_GIT" add "publisher/winner-${COUNT}.html"
+  "$REAL_GIT" -c user.name=winner -c user.email=winner@example.com commit -m "winner ${COUNT}"
+  "$REAL_GIT" push origin HEAD:refs/heads/gh-pages
+  cd "$ACTION_CHECKOUT"
+fi
+exec "$REAL_GIT" "$@"
+'''
+        gitWrapper.executable = true
+
+        action.mockPath.resolve('sleep').toFile().with {
+            text = '#!/bin/sh\nexit 0\n'
+            executable = true
+        }
+
+        and:
+        def env = getDefaultEnvironment(action, gitRepo)
+        env['GRADLE_PUBLISH_RELEASE'] = 'false'
+        env['SOURCE_FOLDER'] = 'docs'
+        env['VERSION'] = '7.0.0-SNAPSHOT'
+
+        and:
+        action.createContainer(env, net)
+
+        when:
+        Exception startupException = null
+        try {
+            action.runAction()
+        } catch (Exception e) {
+            startupException = e
+        }
+
+        then: 'each normal push is rejected by a fresh remote advance'
+        startupException != null || action.actionExitCode != 0L
         action.actionLogs.contains('Push attempt 1/5')
         action.actionLogs.contains('Push attempt 2/5')
         action.actionLogs.contains('Push attempt 3/5')
         action.actionLogs.contains('Push attempt 4/5')
         action.actionLogs.contains('Push attempt 5/5')
-
-        and: 'error message logged after exhausting retries'
+        !action.actionLogs.contains('Push attempt 6/5')
         action.actionLogs.contains('ERROR: Push failed after 5 attempts.')
-
-        and: 'deployment did not succeed'
         !action.actionLogs.contains('Deployment successful!')
 
         cleanup:
