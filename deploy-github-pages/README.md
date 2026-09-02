@@ -32,7 +32,7 @@ Note: snapshots ignore the VERSION parameter and always publish to the `snapshot
 
 ## Push Retry Logic
 
-When multiple branches build concurrently, their documentation deployments may race to push to the same documentation branch. To handle this, the action includes automatic retry logic: if a push is rejected (e.g., because another build pushed first), it will pull remote changes with rebase and retry, up to 5 attempts. If all attempts fail, the action exits with an error.
+When publishers race to update an existing documentation branch, the action makes up to five push attempts, including the initial attempt. After a retryable non-fast-forward rejection, it fetches the new remote tip, requires that tip to be a strict descendant of the previously observed remote tip, rebases the unpublished local deployment in the existing checkout, and attempts another normal fast-forward push. The action never force-pushes. Rebase conflicts, fetched retry tips that fail the descendant check, concurrent creation of a previously missing documentation branch, and non-contention push failures stop the deployment without changing the remote branch.
 
 ## Requirements
 If using the default `GITHUB_TOKEN`, this action requires permission `contents: write`. Otherwise, the provided `GH_TOKEN` must be able to commit to the documentation branch.

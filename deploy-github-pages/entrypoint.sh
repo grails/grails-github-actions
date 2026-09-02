@@ -31,7 +31,7 @@ set_value_or_error() {
     exit 1
   fi
 
-  if [[ -n "$value" ]]; then    
+  if [[ -n "$value" ]]; then
     decidedValue="$value"
   else
     echo "${variableName}: Using default value: ${defaultValue}"
@@ -101,7 +101,7 @@ publish_artifacts() {
 
 is_highest_version() {
   local new_folder="$1"   # e.g. "7.0.x"
-  
+
   # Strip the trailing ".x" → "7.0", then parse into major/minor
   local new_major new_minor
   local folder_no_x="${new_folder%.x}"  # "7.0"
@@ -207,6 +207,7 @@ if git ls-remote --heads "${GIT_REPO_URL}" "${DOCUMENTATION_BRANCH}" | grep -q "
   echo "documentation branch found, cloning"
   git clone "${GIT_REPO_URL}" "${DOCUMENTATION_BRANCH}" --branch "${DOCUMENTATION_BRANCH}" --single-branch --depth 1
   cd ${DOCUMENTATION_BRANCH}
+  LAST_REMOTE_TIP="$(git rev-parse HEAD)"
   echo "::endgroup::"
 else
   echo "::group::Creating documentation branch"
@@ -216,6 +217,7 @@ else
   git init
   git checkout -b "${DOCUMENTATION_BRANCH}"
   git remote add origin "${GIT_REPO_URL}"
+  LAST_REMOTE_TIP=""
   echo "::endgroup::"
 fi
 
@@ -285,7 +287,7 @@ else
   echo "Published release documentation to ${genericVersionFolder}"
   echo "::endgroup::"
 
-  # Publish to the latest release folder if needed 
+  # Publish to the latest release folder if needed
   if [[ "$SKIP_RELEASE_FOLDER" == "false" ]]; then
     if is_highest_version "${genericVersionFolder}"; then
       echo "::group::Overwriting ${LAST_RELEASE_FOLDER} with the latest release documentation"
@@ -321,16 +323,43 @@ MAX_PUSH_ATTEMPTS=5
 PUSH_ATTEMPT=1
 while [ $PUSH_ATTEMPT -le $MAX_PUSH_ATTEMPTS ]; do
   echo "Push attempt ${PUSH_ATTEMPT}/${MAX_PUSH_ATTEMPTS}"
-  if git push "${GIT_REPO_URL}" "${DOCUMENTATION_BRANCH}" 2>&1; then
+  PUSH_EXIT=0
+  PUSH_OUTPUT="$(LC_ALL=C git push --porcelain "${GIT_REPO_URL}" "HEAD:refs/heads/${DOCUMENTATION_BRANCH}" 2>&1)" || PUSH_EXIT=$?
+  printf '%s\n' "${PUSH_OUTPUT}"
+  if [ $PUSH_EXIT -eq 0 ]; then
     echo "Deployment successful!"
     break
+  fi
+  if ! grep -Eq $'^!\t.*\t\[rejected\] \((non-fast-forward|fetch first)\)$' <<< "${PUSH_OUTPUT}"; then
+    echo "ERROR: Push failed without a retryable non-fast-forward rejection." >&2
+    exit 1
+  fi
+  if [ -z "${LAST_REMOTE_TIP}" ]; then
+    echo "ERROR: Documentation branch was created by another publisher before the first push." >&2
+    exit 1
   fi
   if [ $PUSH_ATTEMPT -eq $MAX_PUSH_ATTEMPTS ]; then
     echo "ERROR: Push failed after ${MAX_PUSH_ATTEMPTS} attempts." >&2
     exit 1
   fi
-  echo "Push rejected, pulling remote changes and retrying..."
-  git pull --rebase "${GIT_REPO_URL}" "${DOCUMENTATION_BRANCH}"
+  echo "Push rejected by a concurrent publisher, rebasing and retrying..."
+  if ! git fetch --no-tags "${GIT_REPO_URL}" "refs/heads/${DOCUMENTATION_BRANCH}"; then
+    echo "ERROR: Failed to fetch the concurrent documentation branch update." >&2
+    exit 1
+  fi
+  NEW_REMOTE_TIP="$(git rev-parse FETCH_HEAD)"
+  if [[ "${NEW_REMOTE_TIP}" == "${LAST_REMOTE_TIP}" ]] || ! git merge-base --is-ancestor "${LAST_REMOTE_TIP}" "${NEW_REMOTE_TIP}"; then
+    echo "ERROR: Concurrent documentation branch update is not a descendant of the observed remote tip." >&2
+    exit 1
+  fi
+  if ! git rebase --onto "${NEW_REMOTE_TIP}" "${LAST_REMOTE_TIP}"; then
+    echo "ERROR: Rebase failed; aborting without changing the remote branch." >&2
+    git rebase --abort
+    exit 1
+  fi
+  LAST_REMOTE_TIP="${NEW_REMOTE_TIP}"
   PUSH_ATTEMPT=$((PUSH_ATTEMPT + 1))
+  BACKOFF_SECONDS=$((1 << (PUSH_ATTEMPT - 2)))
+  sleep $((BACKOFF_SECONDS + RANDOM % (BACKOFF_SECONDS + 1)))
 done
 echo "::endgroup::"
